@@ -207,6 +207,8 @@ GEM
       erb
       psych (>= 4.0.0)
       tsort
+    redis (5.4.1)
+      redis-client (>= 0.22.0)
     redis-client (0.28.0)
       connection_pool
     reline (0.6.3)
@@ -268,6 +270,7 @@ DEPENDENCIES
   pg (~> 1.1)
   puma (>= 5.0)
   rails (~> 8.1.2)
+  redis (>= 4.0.1)
   rspec-rails (~> 7.0)
   shoulda-matchers (~> 6.0)
   sidekiq (~> 7.0)
