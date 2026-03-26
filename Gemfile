@@ -4,6 +4,7 @@ gem "rails", "~> 8.1.2"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 gem "sidekiq", "~> 7.0"
+gem "redis", ">= 4.0.1"
 gem "bootsnap", require: false
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 

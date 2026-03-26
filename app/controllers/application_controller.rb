@@ -1,4 +1,8 @@
 class ApplicationController < ActionController::API
+  rate_limit to: ENV.fetch("RATE_LIMIT_RPM", 60).to_i, within: 1.minute,
+             by: -> { request.headers["Authorization"] || request.remote_ip },
+             with: -> { render_error("RATE_LIMITED", "Rate limit exceeded. Try again shortly.", :too_many_requests) }
+
   rescue_from ActiveRecord::RecordNotFound do |e|
     render_error("NOT_FOUND", e.message, :not_found)
   end
@@ -28,6 +32,10 @@ class ApplicationController < ActionController::API
     unless @current_account
       render_error("UNAUTHORIZED", "Invalid or missing API key", :unauthorized)
     end
+  end
+
+  def require_admin!
+    render_error("FORBIDDEN", "Admin access required", :forbidden) unless current_account&.admin?
   end
 
   def current_account
