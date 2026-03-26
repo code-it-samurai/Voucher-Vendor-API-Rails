@@ -6,5 +6,9 @@ FactoryBot.define do
     trait :with_balance do
       balance { 1000.0 }
     end
+
+    trait :admin do
+      admin { true }
+    end
   end
 end

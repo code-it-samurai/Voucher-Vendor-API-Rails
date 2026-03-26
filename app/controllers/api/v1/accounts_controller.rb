@@ -2,6 +2,7 @@ module Api
   module V1
     class AccountsController < ApplicationController
       before_action :authenticate!, except: [:create]
+      before_action :require_admin!, only: [:top_up]
 
       def create
         account = Account.new(account_params)

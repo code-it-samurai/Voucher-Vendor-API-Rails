@@ -24,10 +24,11 @@ RSpec.describe "Api::V1::Products", type: :request do
   end
 
   describe "POST /api/v1/products/:id/replenish" do
+    let(:admin) { create(:account, :admin) }
     let!(:product) { create(:product, stock: 10) }
 
     it "adds stock to product" do
-      post "/api/v1/products/#{product.id}/replenish", params: { quantity: 50 }, headers: auth_headers(account), as: :json
+      post "/api/v1/products/#{product.id}/replenish", params: { quantity: 50 }, headers: auth_headers(admin), as: :json
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
@@ -36,21 +37,26 @@ RSpec.describe "Api::V1::Products", type: :request do
     end
 
     it "rejects zero quantity" do
-      post "/api/v1/products/#{product.id}/replenish", params: { quantity: 0 }, headers: auth_headers(account), as: :json
-
+      post "/api/v1/products/#{product.id}/replenish", params: { quantity: 0 }, headers: auth_headers(admin), as: :json
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
     it "rejects negative quantity" do
-      post "/api/v1/products/#{product.id}/replenish", params: { quantity: -5 }, headers: auth_headers(account), as: :json
-
+      post "/api/v1/products/#{product.id}/replenish", params: { quantity: -5 }, headers: auth_headers(admin), as: :json
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
     it "returns 404 for non-existent product" do
-      post "/api/v1/products/99999/replenish", params: { quantity: 10 }, headers: auth_headers(account), as: :json
-
+      post "/api/v1/products/99999/replenish", params: { quantity: 10 }, headers: auth_headers(admin), as: :json
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns 403 for non-admin" do
+      post "/api/v1/products/#{product.id}/replenish", params: { quantity: 10 }, headers: auth_headers(account), as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      json = response.parsed_body
+      expect(json["error"]["code"]).to eq("FORBIDDEN")
     end
   end
 end
