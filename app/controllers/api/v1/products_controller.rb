@@ -2,6 +2,7 @@ module Api
   module V1
     class ProductsController < ApplicationController
       before_action :authenticate!
+      before_action :require_admin!, only: [:replenish]
 
       def index
         products = Product.active.order(:name)

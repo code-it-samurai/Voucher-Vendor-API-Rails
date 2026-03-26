@@ -48,16 +48,15 @@ RSpec.describe "Api::V1::Accounts", type: :request do
 
     it "returns 401 without auth" do
       get "/api/v1/accounts/me", as: :json
-
       expect(response).to have_http_status(:unauthorized)
     end
   end
 
   describe "POST /api/v1/accounts/top_up" do
-    let(:account) { create(:account) }
+    let(:admin) { create(:account, :admin) }
 
     it "credits balance and returns transaction" do
-      post "/api/v1/accounts/top_up", params: { amount: 500.0 }, headers: auth_headers(account), as: :json
+      post "/api/v1/accounts/top_up", params: { amount: 500.0 }, headers: auth_headers(admin), as: :json
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
@@ -67,23 +66,29 @@ RSpec.describe "Api::V1::Accounts", type: :request do
     end
 
     it "rejects negative amount" do
-      post "/api/v1/accounts/top_up", params: { amount: -10 }, headers: auth_headers(account), as: :json
-
+      post "/api/v1/accounts/top_up", params: { amount: -10 }, headers: auth_headers(admin), as: :json
       expect(response).to have_http_status(:unprocessable_entity)
       json = response.parsed_body
       expect(json["error"]["code"]).to eq("INVALID_AMOUNT")
     end
 
     it "rejects zero amount" do
-      post "/api/v1/accounts/top_up", params: { amount: 0 }, headers: auth_headers(account), as: :json
-
+      post "/api/v1/accounts/top_up", params: { amount: 0 }, headers: auth_headers(admin), as: :json
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
     it "returns 401 without auth" do
       post "/api/v1/accounts/top_up", params: { amount: 100 }, as: :json
-
       expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "returns 403 for non-admin" do
+      regular = create(:account)
+      post "/api/v1/accounts/top_up", params: { amount: 100 }, headers: auth_headers(regular), as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      json = response.parsed_body
+      expect(json["error"]["code"]).to eq("FORBIDDEN")
     end
   end
 end
