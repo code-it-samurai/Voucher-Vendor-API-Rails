@@ -6,6 +6,7 @@
   - [API Reference](api-reference.md)
   - [Authentication](authentication.md)
   - [Curl Cookbook](curl-cookbook.md)
+  - [Postman Collection](postman.md)
 
 - **Architecture**
   - [System Design](architecture.md)
@@ -15,6 +16,3 @@
 
 - **Quality**
   - [Testing](testing.md)
-
-- **Internal**
-  - [Implementation Steps](IMPLEMENTATION_STEPS.md)

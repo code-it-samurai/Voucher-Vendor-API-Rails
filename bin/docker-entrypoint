@@ -1,8 +1,15 @@
 #!/bin/bash -e
 
-# If running the rails server then create or migrate existing database
-if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
-  ./bin/rails db:prepare
+# Remove stale PID file from previous container
+rm -f tmp/pids/server.pid
+
+# If running the rails server then create/migrate database and seed
+if [ "${1}" == "bin/rails" ] && [ "${2}" == "server" ]; then
+  echo "==> Preparing database..."
+  bin/rails db:prepare
+  echo "==> Seeding database..."
+  bin/rails db:seed
+  echo "==> Ready."
 fi
 
 exec "${@}"

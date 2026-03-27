@@ -26,7 +26,6 @@ services:
 
   web:
     build: .
-    command: bin/rails server -b 0.0.0.0 -p 3000
     volumes:
       - .:/app
       - bundle_cache:/usr/local/bundle
@@ -47,6 +46,7 @@ services:
 
   sidekiq:
     build: .
+    entrypoint: []
     command: bundle exec sidekiq
     volumes:
       - .:/app

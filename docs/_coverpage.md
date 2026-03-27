@@ -1,15 +1,14 @@
-<!-- docs/_coverpage.md -->
-
 # Voucher Vendor API
 
 > A production-grade Gift Card Order Service built with Ruby on Rails
 
-- **Idempotent** order placement via client-provided reference codes
-- **Concurrency-safe** balance & stock mutations with row-level locks
-- **Async fulfillment** with Sidekiq, retries, and automatic refunds
-- **Admin authorization** and per-account rate limiting
-- **98 RSpec tests** including thread-safety concurrency specs
+- [**Idempotent** order placement via client-provided reference codes](idempotency.md)
+- [**Concurrency-safe** balance & stock mutations with row-level locks](concurrency.md)
+- [**Async fulfillment** with Sidekiq, retries, and automatic refunds](background-jobs.md)
+- [**Admin authorization** and per-account rate limiting](authentication.md)
+- [**Test specs** with thread-safety concurrency coverage](testing.md)
 
-[Get Started](#overview)
+[Get Started](#quick-start)
 [API Reference](api-reference.md)
-[GitHub](https://github.com/prathameshpatil7/Voucher-Vendor-API-Rails)
+[Postman Collection](postman.md)
+[GitHub](https://github.com/code-it-samurai/Voucher-Vendor-API-Rails)

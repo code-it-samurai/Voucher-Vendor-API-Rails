@@ -5,7 +5,7 @@ All responses use a consistent envelope format. See [Response Format](#response-
 ## Endpoints Overview
 
 | Method | Endpoint | Auth | Admin | Description |
-|--------|----------|:----:|:-----:|-------------|
+|---|---|---|---|---|
 | `POST` | `/api/v1/accounts` | No | No | Create account |
 | `GET` | `/api/v1/accounts/me` | Yes | No | View current account |
 | `POST` | `/api/v1/accounts/top_up` | Yes | **Yes** | Add funds to account |
@@ -50,8 +50,9 @@ Create a new account. **No authentication required.** The API key is returned on
 > **Important:** Save the `api_key` — it is only shown once during account creation.
 
 **Errors:**
+
 | Status | Code | When |
-|--------|------|------|
+|---|---|---|
 | 422 | `INVALID_INPUT` | Missing name/email or duplicate email |
 
 ---
@@ -103,8 +104,9 @@ Add funds to an account balance. **Admin-only.**
 ```
 
 **Errors:**
+
 | Status | Code | When |
-|--------|------|------|
+|---|---|---|
 | 403 | `FORBIDDEN` | Non-admin account |
 | 422 | `INVALID_AMOUNT` | Amount <= 0 |
 
@@ -165,8 +167,9 @@ Add stock to a product. **Admin-only.**
 ```
 
 **Errors:**
+
 | Status | Code | When |
-|--------|------|------|
+|---|---|---|
 | 403 | `FORBIDDEN` | Non-admin account |
 | 422 | `INVALID_INPUT` | Quantity <= 0 |
 | 404 | `NOT_FOUND` | Product doesn't exist |
@@ -210,8 +213,9 @@ Place a new order. **Idempotent** via `reference_code`.
 Same body as above, returning the existing order. No balance debit or stock change occurs.
 
 **Errors:**
+
 | Status | Code | When |
-|--------|------|------|
+|---|---|---|
 | 422 | `INSUFFICIENT_BALANCE` | Account balance < total_amount |
 | 422 | `OUT_OF_STOCK` | Product stock < quantity |
 | 422 | `PRODUCT_NOT_FOUND` | Product doesn't exist or inactive |
@@ -247,8 +251,9 @@ Get order details. Includes vouchers when order is `completed`.
 ```
 
 **Errors:**
+
 | Status | Code | When |
-|--------|------|------|
+|---|---|---|
 | 404 | `NOT_FOUND` | Order not found or belongs to another account |
 
 ---
@@ -270,8 +275,9 @@ Cancel a pending order. Balance and stock are refunded immediately.
 ```
 
 **Errors:**
+
 | Status | Code | When |
-|--------|------|------|
+|---|---|---|
 | 422 | `ORDER_NOT_CANCELLABLE` | Order is not in `pending` status |
 | 404 | `NOT_FOUND` | Order not found or belongs to another account |
 
@@ -309,7 +315,7 @@ Every API response uses a consistent envelope:
 ### Error Codes
 
 | Code | HTTP Status | Description |
-|------|:-----------:|-------------|
+|---|---|---|
 | `UNAUTHORIZED` | 401 | Missing or invalid API key |
 | `FORBIDDEN` | 403 | Admin access required |
 | `RATE_LIMITED` | 429 | Rate limit exceeded (60 RPM per account) |
