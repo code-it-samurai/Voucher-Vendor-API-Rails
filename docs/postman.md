@@ -1,36 +1,52 @@
 # Postman Collection
 
-> Import the collection into Postman to test all endpoints with a single click.
+> Import the collection into Postman to test all API flows with auto-captured variables.
 
 ## Download
 
-📦 **[Voucher-Vendor-API.postman_collection.json](https://github.com/code-it-samurai/Voucher-Vendor-API-Rails/blob/main/docs/Voucher-Vendor-API.postman_collection.json)**
+**[Voucher_Vendor_API.postman_collection.json](https://github.com/code-it-samurai/Voucher-Vendor-API-Rails/blob/main/docs/Voucher_Vendor_API.postman_collection.json)**
 
 ## What's Included
 
-The collection covers the full API workflow:
+The collection is organized by entity and covers every success flow:
 
-| Folder | Requests |
-|--------|----------|
-| **Setup** | Create Account, Admin Top-Up |
-| **Products** | List Products, Replenish Stock (Admin) |
-| **Orders** | Place Order, Get Order, Cancel Order |
-| **Idempotency** | Duplicate Reference Code |
-| **Error Cases** | Insufficient Balance, Out of Stock, Unauthorized, Forbidden |
+| Folder | Requests | What It Demonstrates |
+|--------|----------|----------------------|
+| **Accounts** | Create Account, Create Admin, Get Me, Top Up, Check Balance | Registration, auth, admin top-up |
+| **Products** | List All, Replenish Stock | Catalog browse, admin stock management |
+| **Orders — Success** | Place, Poll Status, Idempotent Replay | Full lifecycle with voucher generation |
+| **Orders — Pending** | Place, Poll Status | Order stays in pending/processing state |
+| **Orders — Refund** | Place, Poll Status, Verify Balance | Auto-refund after retry exhaustion |
+| **Orders — Cancellation** | Place, Cancel, Verify Status, Verify Balance | Cancel before fulfillment |
+| **Orders — Real Product** | Place, Get Status | Standard order with seeded product |
 
-## Environment Variables
+## Auto-Captured Variables
 
-The collection uses these variables — set them after creating your account:
+The collection uses **test scripts** to automatically capture IDs and API keys as you run requests in sequence. No manual variable setup needed.
 
-| Variable | Description |
+| Variable | Auto-set By |
 |----------|-------------|
-| `base_url` | `http://localhost:3000` |
-| `user_api_key` | API key from account creation |
-| `admin_api_key` | Admin API key from `db:seed` output |
+| `api_key` | Create Account |
+| `admin_api_key` | Create Admin Account |
+| `product_id` | List All Products |
+| `test_success_product_id` | List All Products |
+| `test_pending_product_id` | List All Products |
+| `test_refund_product_id` | List All Products |
+| `success_order_id` | Place Order (Success) |
+| `pending_order_id` | Place Order (Pending) |
+| `refund_order_id` | Place Order (Refund) |
+| `cancel_order_id` | Place Order (Cancel) |
 
 ## Quick Setup
 
-1. Import the collection JSON into Postman
-2. Set the environment variables above
-3. Run the **Setup** folder first to create accounts and add balance
-4. Run any other folder to test specific flows
+1. Import `Voucher_Vendor_API.postman_collection.json` into Postman
+2. Make sure the API is running: `docker compose up --build`
+3. Run the **Accounts** folder first (creates accounts and adds balance)
+4. Run the **Products** folder (captures product IDs)
+5. Run any **Orders** folder to test specific flows
+
+> **Admin setup:** After creating the admin account, promote it via Rails console:
+> ```bash
+> docker compose exec web bin/rails console
+> Account.find_by(email: 'admin@example.com').update!(admin: true)
+> ```

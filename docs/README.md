@@ -12,12 +12,14 @@ docker compose up --build
 
 That's it. The entrypoint script automatically creates the database, runs migrations, and seeds test data. The API is live at **http://localhost:3000** and the Sidekiq dashboard at **http://localhost:3000/sidekiq**.
 
-To run the test suite:
+## Running Test Specs
 
 ```bash
 docker compose exec -e RAILS_ENV=test web bin/rails db:create db:migrate
 docker compose exec -e RAILS_ENV=test web bundle exec rspec
 ```
+
+All specs run inside the same Docker environment — no local Ruby install needed. See [Testing](testing.md) for the full breakdown of what's covered.
 
 ---
 

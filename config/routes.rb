@@ -1,5 +1,8 @@
 require "sidekiq/web"
 
+Sidekiq::Web.use ActionDispatch::Cookies
+Sidekiq::Web.use ActionDispatch::Session::CookieStore, key: "_sidekiq_session"
+
 Rails.application.routes.draw do
   mount Sidekiq::Web => "/sidekiq"
 

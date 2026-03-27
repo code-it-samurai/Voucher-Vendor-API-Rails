@@ -29,18 +29,16 @@ Sidekiq skips the entrypoint and starts directly.
 ## Services
 
 ```mermaid
-graph LR
-    subgraph Containers
-        W["voucher-vendor-web-1<br/>Rails API :3000"]
-        S["voucher-vendor-sidekiq-1<br/>Background Worker"]
-        D["voucher-vendor-db-1<br/>PostgreSQL 16"]
-        R["voucher-vendor-redis-1<br/>Redis 7"]
+graph TB
+    subgraph Application Layer
+        W["<b>voucher-vendor-web-1</b><br/>Rails API · Port 3000<br/><i>ruby:3.3-slim</i>"]
+        S["<b>voucher-vendor-sidekiq-1</b><br/>Background Worker<br/><i>ruby:3.3-slim</i>"]
     end
 
-    W --> D
-    W --> R
-    S --> D
-    S --> R
+    subgraph Data Layer
+        D["<b>voucher-vendor-db-1</b><br/>PostgreSQL 16<br/><i>postgres:16-alpine</i>"]
+        R["<b>voucher-vendor-redis-1</b><br/>Redis 7<br/><i>redis:7-alpine</i>"]
+    end
 ```
 
 | Container | Image | Purpose | Ports |

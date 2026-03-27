@@ -4,7 +4,7 @@
 
 - [**Idempotent** order placement via client-provided reference codes](idempotency.md)
 - [**Concurrency-safe** balance & stock mutations with row-level locks](concurrency.md)
-- [**Async fulfillment** with Sidekiq, retries, and automatic refunds](background-jobs.md)
+- [**Async fulfillment** with Sidekiq, retries & automatic refunds](background-jobs.md)
 - [**Admin authorization** and per-account rate limiting](authentication.md)
 - [**Test specs** with thread-safety concurrency coverage](testing.md)
 
