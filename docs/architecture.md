@@ -4,30 +4,74 @@
 
 ```mermaid
 graph TB
-    Client["Client / Postman<br/>port 3000"]
+    Client["Client / Postman"]
 
-    subgraph Docker["Docker Compose Network (voucher-vendor)"]
-        Web["web<br/>(Rails 8.1 API)"]
-        DB["db<br/>(PostgreSQL 16)"]
-        Redis["redis<br/>(Redis 7)"]
-        Sidekiq["sidekiq<br/>(Background Worker)"]
+    subgraph Host["Host Machine"]
+        Port3000["localhost:3000"]
+        Port5433["localhost:5433"]
     end
 
-    Client -->|"HTTP :3000"| Web
-    Web -->|"TCP :5432"| DB
-    Web -->|"TCP :6379<br/>enqueue jobs + rate limit cache"| Redis
-    Sidekiq -->|"TCP :6379<br/>dequeue jobs"| Redis
-    Sidekiq -->|"TCP :5432<br/>read/write orders"| DB
+    subgraph Docker["Docker Compose Network — voucher-vendor_default"]
+        subgraph WebContainer["voucher-vendor-web-1"]
+            Rails["Rails 8.1 API<br/>Puma Web Server"]
+            Auth["Auth Middleware<br/>HMAC-SHA256 Bearer Token"]
+            RateLimit["Rate Limiter<br/>60 RPM / account"]
+            Controllers["Controllers<br/>Accounts · Orders · Products"]
+            Services["Service Layer<br/>Placement · Fulfillment<br/>Cancellation · Refund · TopUp"]
+        end
+
+        subgraph SidekiqContainer["voucher-vendor-sidekiq-1"]
+            Worker["Sidekiq Worker"]
+            FulfillmentJob["OrderFulfillmentJob<br/>5 retries · exponential backoff"]
+            RetryExhausted["retries_exhausted callback<br/>→ auto refund"]
+        end
+
+        subgraph DBContainer["voucher-vendor-db-1"]
+            PG["PostgreSQL 16"]
+            RowLocks["SELECT ... FOR UPDATE<br/>row-level locks"]
+            UniqueIdx["UNIQUE INDEX<br/>reference_code · api_key · email"]
+            Tables["Tables<br/>accounts · products · orders<br/>vouchers · transaction_records"]
+        end
+
+        subgraph RedisContainer["voucher-vendor-redis-1"]
+            RedisServer["Redis 7"]
+            JobQueue["Job Queue<br/>Sidekiq enqueue/dequeue"]
+            CacheStore["Cache Store<br/>Rate limit counters"]
+        end
+    end
+
+    Client -->|"HTTP"| Port3000
+    Port3000 -->|":3000 → :3000"| Rails
+
+    Rails --> Auth
+    Auth --> RateLimit
+    RateLimit --> Controllers
+    Controllers --> Services
+
+    Services -->|"TCP :5432<br/>transactions + row locks"| PG
+    Services -->|"TCP :6379<br/>enqueue jobs"| RedisServer
+
+    Worker -->|"TCP :6379<br/>dequeue jobs"| RedisServer
+    FulfillmentJob -->|"TCP :5432<br/>process orders + generate vouchers"| PG
+    RetryExhausted -->|"TCP :5432<br/>refund balance + restore stock"| PG
+
+    Port5433 -->|":5433 → :5432"| PG
+
+    RateLimit -.->|"TCP :6379<br/>increment counters"| RedisServer
 ```
 
-| Service | Container Name | Role | Exposed |
-|---------|---------------|------|---------|
-| **web** | `voucher-vendor-web-1` | Rails API server | Port 3000 to host |
-| **db** | `voucher-vendor-db-1` | PostgreSQL 16 with row locks | Internal only |
-| **redis** | `voucher-vendor-redis-1` | Job queue + rate limit cache | Internal only |
-| **sidekiq** | `voucher-vendor-sidekiq-1` | Async job processor | Internal only |
+### Service Details
 
-All services communicate via Docker's internal DNS using service names as hostnames.
+| Container | Image | Internal Port | Exposed | Role |
+|---|---|---|---|---|
+| `voucher-vendor-web-1` | ruby:3.3-slim | 3000 | **3000 → host** | Rails API + Puma |
+| `voucher-vendor-db-1` | postgres:16-alpine | 5432 | 5433 → host | Primary database |
+| `voucher-vendor-redis-1` | redis:7-alpine | 6379 | Internal only | Job queue + cache |
+| `voucher-vendor-sidekiq-1` | ruby:3.3-slim | — | Internal only | Background worker |
+
+### Communication
+
+All services communicate via Docker's internal DNS — service names resolve to container IPs. Only the web service exposes port 3000 to the host. The database is optionally accessible on host port 5433 for debugging.
 
 ---
 
@@ -35,15 +79,15 @@ All services communicate via Docker's internal DNS using service names as hostna
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending: Order placed<br/>(balance debited, stock decremented)
+    [*] --> pending: Order placed<br/>balance debited · stock decremented
 
     pending --> processing: Sidekiq job picked up
-    pending --> cancelled: Client cancels<br/>(balance + stock refunded)
+    pending --> cancelled: Client cancels<br/>balance + stock refunded
 
     processing --> completed: Vouchers generated
-    processing --> failed: Downstream failure<br/>(after 5 retries exhausted)
+    processing --> failed: Downstream failure<br/>after 5 retries exhausted
 
-    failed --> refunded: Automatic refund<br/>(balance + stock restored)
+    failed --> refunded: Automatic refund<br/>balance + stock restored
 
     completed --> [*]
     cancelled --> [*]
@@ -51,7 +95,7 @@ stateDiagram-v2
 ```
 
 | Status | Description | Terminal? |
-|--------|-------------|:---------:|
+|---|---|:---:|
 | `pending` | Order accepted, balance debited, queued for async processing | No |
 | `processing` | Background job picked it up, working on fulfillment | No |
 | `completed` | Voucher(s) generated successfully | Yes |
@@ -138,6 +182,7 @@ sequenceDiagram
 
     C->>W: POST /api/v1/orders<br/>{reference_code, product_id, quantity}
     W->>W: Authenticate (Bearer token)
+    W->>W: Rate limit check
 
     W->>DB: BEGIN TRANSACTION
     W->>DB: SELECT * FROM accounts WHERE id=? FOR UPDATE
@@ -161,14 +206,17 @@ sequenceDiagram
 
     Note over S,R: Async processing begins
     S->>R: Dequeue job
-    S->>DB: Process order, generate vouchers
+    S->>DB: Lock order row, set status=processing
+    S->>S: Generate vouchers
 
     alt Success
-        S->>DB: UPDATE orders SET status=completed
         S->>DB: INSERT INTO vouchers
+        S->>DB: UPDATE orders SET status=completed
     else Failure (retries exhausted)
         S->>DB: UPDATE orders SET status=failed
-        S->>DB: Refund balance + restore stock
+        S->>DB: Lock account + product rows
+        S->>DB: Credit balance + restore stock
+        S->>DB: INSERT INTO transaction_records (type: refund)
         S->>DB: UPDATE orders SET status=refunded
     end
 ```

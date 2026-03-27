@@ -1,0 +1,707 @@
+{
+  "info": {
+    "name": "Voucher Vendor API",
+    "description": "Gift Card Order Service — Ajakus Technical Assessment\n\nThis collection demonstrates all success flows grouped by entity.\n\n## Setup\n1. Run `docker compose up --build`\n2. Create an account (first request)\n3. The collection auto-captures `api_key` and resource IDs into variables",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "api_key", "value": "" },
+    { "key": "admin_api_key", "value": "" },
+    { "key": "account_id", "value": "" },
+    { "key": "product_id", "value": "" },
+    { "key": "test_success_product_id", "value": "" },
+    { "key": "test_pending_product_id", "value": "" },
+    { "key": "test_refund_product_id", "value": "" },
+    { "key": "order_id", "value": "" },
+    { "key": "success_order_id", "value": "" },
+    { "key": "pending_order_id", "value": "" },
+    { "key": "refund_order_id", "value": "" },
+    { "key": "cancel_order_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Accounts",
+      "description": "Account registration, balance lookup, and admin top-up.",
+      "item": [
+        {
+          "name": "Create Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'SUCCESS') {",
+                  "  pm.collectionVariables.set('api_key', res.data.api_key);",
+                  "  pm.collectionVariables.set('account_id', res.data.id);",
+                  "  pm.test('Account created', () => pm.response.to.have.status(201));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account\": {\n    \"name\": \"Test User\",\n    \"email\": \"testuser@example.com\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts"]
+            }
+          }
+        },
+        {
+          "name": "Create Admin Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'SUCCESS') {",
+                  "  pm.collectionVariables.set('admin_api_key', res.data.api_key);",
+                  "  pm.test('Admin account created', () => pm.response.to.have.status(201));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// After creating this account, manually set admin: true via Rails console",
+                  "// docker compose exec web bin/rails console",
+                  "// Account.find_by(email: 'admin@example.com').update!(admin: true)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account\": {\n    \"name\": \"Admin User\",\n    \"email\": \"admin@example.com\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts"]
+            }
+          }
+        },
+        {
+          "name": "Get My Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Account details returned', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.data).to.have.property('balance');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "me"]
+            }
+          }
+        },
+        {
+          "name": "Top Up Balance (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Balance topped up', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.data).to.have.property('balance');",
+                  "  pm.expect(res.data.transaction.type).to.eql('credit');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/top_up",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "top_up"]
+            }
+          }
+        },
+        {
+          "name": "Check Balance After Top Up",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "description": "Browse the gift card catalog and admin stock replenishment.",
+      "item": [
+        {
+          "name": "List All Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'SUCCESS' && res.data.length > 0) {",
+                  "  // Capture first real product",
+                  "  const real = res.data.find(p => !p.name.startsWith('Test'));",
+                  "  if (real) pm.collectionVariables.set('product_id', real.id);",
+                  "",
+                  "  // Capture test product IDs",
+                  "  const success = res.data.find(p => p.name === 'Test - Always Succeeds');",
+                  "  if (success) pm.collectionVariables.set('test_success_product_id', success.id);",
+                  "",
+                  "  const pending = res.data.find(p => p.name === 'Test - Stays Pending');",
+                  "  if (pending) pm.collectionVariables.set('test_pending_product_id', pending.id);",
+                  "",
+                  "  const refund = res.data.find(p => p.name === 'Test - Fails After Retry');",
+                  "  if (refund) pm.collectionVariables.set('test_refund_product_id', refund.id);",
+                  "",
+                  "  pm.test('Products listed', () => pm.response.to.have.status(200));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products"]
+            }
+          }
+        },
+        {
+          "name": "Replenish Stock (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Stock replenished', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.data.stock).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/products/{{product_id}}/replenish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products", "{{product_id}}", "replenish"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Success Flow",
+      "description": "Place an order that completes successfully with voucher generation.",
+      "item": [
+        {
+          "name": "Place Order (Success Product)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'SUCCESS') {",
+                  "  pm.collectionVariables.set('success_order_id', res.data.id);",
+                  "  pm.test('Order accepted', () => pm.response.to.have.status(202));",
+                  "  pm.test('Status is pending', () => pm.expect(res.data.status).to.eql('pending'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{test_success_product_id}},\n  \"quantity\": 1,\n  \"denomination\": 100,\n  \"reference_code\": \"success-flow-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Poll Order Status → Completed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Order completed with vouchers', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(res.data.status).to.eql('completed');",
+                  "  pm.expect(res.data.vouchers).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Wait for Sidekiq to process the job",
+                  "pm.execution.skipRequest() || setTimeout(() => {}, 2000);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/{{success_order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "{{success_order_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Idempotent Replay (Same Reference Code)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Returns existing order (idempotent)', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(res.data.reference_code).to.eql('success-flow-001');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{test_success_product_id}},\n  \"quantity\": 1,\n  \"denomination\": 100,\n  \"reference_code\": \"success-flow-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Pending Flow",
+      "description": "Place an order using the test product that stays in pending state indefinitely.",
+      "item": [
+        {
+          "name": "Place Order (Stays Pending)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'SUCCESS') {",
+                  "  pm.collectionVariables.set('pending_order_id', res.data.id);",
+                  "  pm.test('Order accepted', () => pm.response.to.have.status(202));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{test_pending_product_id}},\n  \"quantity\": 1,\n  \"denomination\": 100,\n  \"reference_code\": \"pending-flow-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Poll Order — Still Pending",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Order remains pending', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(res.data.status).to.be.oneOf(['pending', 'processing']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/{{pending_order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "{{pending_order_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Refund Flow",
+      "description": "Place an order with a product that fails after retries, triggering an automatic refund.",
+      "item": [
+        {
+          "name": "Place Order (Fails After Retry → Refund)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'SUCCESS') {",
+                  "  pm.collectionVariables.set('refund_order_id', res.data.id);",
+                  "  pm.test('Order accepted', () => pm.response.to.have.status(202));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{test_refund_product_id}},\n  \"quantity\": 1,\n  \"denomination\": 100,\n  \"reference_code\": \"refund-flow-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Poll Order — Refunded",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Order was refunded after retry exhaustion', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(res.data.status).to.eql('refunded');",
+                  "  pm.expect(res.data).to.have.property('failure_reason');",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Retries take time — wait for Sidekiq to exhaust retries",
+                  "// You may need to poll this endpoint several times"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/{{refund_order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "{{refund_order_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Verify Balance Restored After Refund",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Balance restored', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(parseFloat(res.data.balance)).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Cancellation Flow",
+      "description": "Place an order with the pending test product, then cancel it before fulfillment.",
+      "item": [
+        {
+          "name": "Place Order (For Cancellation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'SUCCESS') {",
+                  "  pm.collectionVariables.set('cancel_order_id', res.data.id);",
+                  "  pm.test('Order accepted', () => pm.response.to.have.status(202));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{test_pending_product_id}},\n  \"quantity\": 1,\n  \"denomination\": 100,\n  \"reference_code\": \"cancel-flow-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Pending Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Order cancelled', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(res.data.status).to.eql('cancelled');",
+                  "  pm.expect(res.data).to.have.property('cancelled_at');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/{{cancel_order_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "{{cancel_order_id}}", "cancel"]
+            }
+          }
+        },
+        {
+          "name": "Verify Cancelled Order Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Order shows cancelled', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(res.data.status).to.eql('cancelled');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/{{cancel_order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "{{cancel_order_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Verify Balance Restored After Cancel",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/accounts/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "accounts", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders — Real Product",
+      "description": "Place an order using a real seeded product (Amazon Gift Card) to show the standard flow.",
+      "item": [
+        {
+          "name": "Place Order (Real Product)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'SUCCESS') {",
+                  "  pm.collectionVariables.set('order_id', res.data.id);",
+                  "  pm.test('Order accepted', () => pm.response.to.have.status(202));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{product_id}},\n  \"quantity\": 2,\n  \"denomination\": 100,\n  \"reference_code\": \"real-product-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "{{order_id}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

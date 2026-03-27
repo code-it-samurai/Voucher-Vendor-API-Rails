@@ -6,41 +6,247 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <meta name="description" content="Gift Card Order Service — Rails API demonstrating idempotency, concurrency safety, and background job processing">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css">
   <style>
     :root {
-      --theme-color: #6366f1;
+      --theme-color: #a78bfa;
       --sidebar-width: 260px;
-      --sidebar-nav-link-color--active: #6366f1;
-      --sidebar-nav-link-border-color--active: #6366f1;
-      --cover-background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --cover-heading-color: #fff;
-      --cover-color: #f0f0f0;
-      --cover-button-background: #fff;
-      --cover-button-color: #6366f1;
-      --blockquote-border-color: #6366f1;
+      --sidebar-background: #0f0f0f;
+      --sidebar-border-color: #1e1e1e;
+      --sidebar-nav-link-color: #a0a0a0;
+      --sidebar-nav-link-color--active: #a78bfa;
+      --sidebar-nav-link-border-color--active: #a78bfa;
+      --sidebar-name-color: #e0e0e0;
+
+      --base-background-color: #111111;
+      --base-color: #d4d4d4;
+
+      --heading-color: #f0f0f0;
+      --heading-h1-border-color: #2a2a2a;
+      --heading-h2-color: #c4b5fd;
+
+      --code-theme-background: #1a1a2e;
+      --code-theme-text: #e2e8f0;
+      --code-inline-background: #1e1e2e;
+      --code-inline-color: #c4b5fd;
+
+      --blockquote-border-color: #a78bfa;
+      --blockquote-background: #1a1a1a;
+
+      --table-head-background: #1a1a1a;
+      --table-head-color: #e0e0e0;
+      --table-body-border-color: #2a2a2a;
+      --table-row-even-background: #151515;
+      --table-row-odd-background: #111111;
+
+      --link-color: #a78bfa;
+      --link-color--hover: #c4b5fd;
+
+      --cover-background-color: #0a0a0a;
+      --cover-heading-color: #f0f0f0;
+      --cover-color: #a0a0a0;
+      --cover-button-background: transparent;
+      --cover-button-color: #a78bfa;
+      --cover-button-border: 1px solid #a78bfa;
+
+      --notice-tip-border-color: #a78bfa;
+      --search-background: #1a1a1a;
+      --search-input-color: #e0e0e0;
     }
+
+    body {
+      background: #111111;
+    }
+
+    /* Sidebar */
     .sidebar-nav > ul > li > a {
       font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75em;
+      letter-spacing: 0.05em;
+      color: #666 !important;
+      pointer-events: none;
     }
+    .sidebar-nav > ul > li > ul > li > a {
+      font-weight: 400;
+      text-transform: none;
+      font-size: 0.9em;
+      letter-spacing: normal;
+      color: #a0a0a0 !important;
+      pointer-events: auto;
+    }
+    .sidebar-nav > ul > li > ul > li > a:hover,
+    .sidebar-nav > ul > li > ul > li > a.active {
+      color: #a78bfa !important;
+    }
+
+    /* Content */
     .markdown-section h1 {
-      border-bottom: 2px solid #6366f1;
-      padding-bottom: 0.3em;
+      border-bottom: 1px solid #2a2a2a;
+      padding-bottom: 0.4em;
+      font-weight: 700;
+    }
+    .markdown-section h2 {
+      margin-top: 2.5em;
     }
     .markdown-section table {
       display: table;
       width: 100%;
+      border-collapse: collapse;
     }
-    .app-name-link img {
-      max-width: 40px;
-      margin-right: 8px;
-      vertical-align: middle;
+    .markdown-section table th,
+    .markdown-section table td {
+      border: 1px solid #2a2a2a;
+      padding: 8px 12px;
     }
-    .cover-main {
+    .markdown-section table th {
+      background: #1a1a1a;
+      font-weight: 600;
+    }
+    .markdown-section hr {
+      border: none;
+      border-top: 1px solid #1e1e1e;
+      margin: 3em 0;
+    }
+    .markdown-section code {
+      border-radius: 4px;
+    }
+    .markdown-section pre {
+      border-radius: 8px;
+      border: 1px solid #1e1e1e;
+    }
+
+    /* Cover page — neon dark gradient hero */
+    section.cover {
+      background: radial-gradient(ellipse at 50% -20%, #2d1b69 0%, #130d2e 35%, #080810 70%, #050508 100%) !important;
+    }
+    section.cover::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140%;
+      height: 100%;
+      background: radial-gradient(ellipse, rgba(124, 58, 237, 0.15) 0%, rgba(99, 102, 241, 0.05) 40%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    section.cover::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle at 25% 30%, rgba(167, 139, 250, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 75% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 45%),
+        radial-gradient(circle at 50% 10%, rgba(139, 92, 246, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    section.cover .cover-main {
       text-align: center;
+      position: relative;
+      z-index: 1;
     }
-    .cover-main .anchor span {
-      color: #fff !important;
+    section.cover h1 {
+      font-size: 3.5em;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 0.1em;
+      letter-spacing: -0.02em;
+      text-shadow: 0 0 60px rgba(139, 92, 246, 0.5), 0 0 120px rgba(124, 58, 237, 0.2);
+    }
+    section.cover blockquote {
+      border: none !important;
+      background: transparent !important;
+    }
+    section.cover blockquote p {
+      color: #6b7280 !important;
+      font-size: 1.15em;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+    }
+    section.cover ul {
+      list-style: none;
+      padding: 0;
+      max-width: 540px;
+      margin: 2.5em auto;
+      text-align: left;
+    }
+    section.cover ul li {
+      padding: 0.5em 0;
+      color: #9ca3af;
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+    section.cover ul li a {
+      color: #9ca3af !important;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    section.cover ul li a:hover {
+      color: #c4b5fd !important;
+    }
+    section.cover ul li strong {
+      color: #a78bfa;
+    }
+    /* Cover buttons — single row, uniform purple */
+    section.cover .cover-main > p:last-child {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: nowrap;
+      margin-top: 2.5em;
+    }
+    section.cover .cover-main > p:last-child a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      color: #ffffff !important;
+      border-radius: 8px;
+      padding: 0.6em 1.4em;
+      text-decoration: none;
+      font-size: 0.85em;
+      font-weight: 500;
+      transition: all 0.25s ease;
+      background: rgba(124, 58, 237, 0.6);
+      white-space: nowrap;
+    }
+    section.cover .cover-main > p:last-child a:first-child {
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      font-weight: 600;
+      box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+    }
+    section.cover .cover-main > p:last-child a:hover {
+      background: rgba(139, 92, 246, 0.8);
+      color: #ffffff !important;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
+    }
+    section.cover .cover-main > p:last-child a:first-child:hover {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      box-shadow: 0 0 30px rgba(139, 92, 246, 0.4), 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Mermaid dark theme overrides */
+    .mermaid {
+      background: transparent !important;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
     }
   </style>
 </head>
@@ -49,7 +255,7 @@
   <script>
     window.$docsify = {
       name: 'Voucher Vendor API',
-      repo: 'https://github.com/prathameshpatil7/Voucher-Vendor-API-Rails',
+      repo: 'https://github.com/code-it-samurai/Voucher-Vendor-API-Rails',
       loadSidebar: true,
       coverpage: true,
       auto2top: true,
@@ -88,7 +294,7 @@
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docsify-mermaid@2.0.1/dist/docsify-mermaid.js"></script>
   <script>
-    mermaid.initialize({ startOnLoad: false, theme: 'default' });
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
   </script>
 
   <!-- Tabs plugin -->
