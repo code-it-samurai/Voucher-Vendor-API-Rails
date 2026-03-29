@@ -61,8 +61,32 @@ RSpec.describe "Api::V1::Accounts", type: :request do
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
       expect(json["data"]["balance"]).to eq("500.0")
+      expect(json["data"]["email"]).to eq(admin.email)
       expect(json["data"]["transaction"]["type"]).to eq("credit")
       expect(json["data"]["transaction"]["amount"]).to eq("500.0")
+    end
+
+    it "tops up another account by email" do
+      target = create(:account, email: "target@example.com")
+      post "/api/v1/accounts/top_up",
+        params: { amount: 300.0, email: "target@example.com" },
+        headers: auth_headers(admin), as: :json
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json["data"]["email"]).to eq("target@example.com")
+      expect(json["data"]["balance"]).to eq("300.0")
+      expect(target.reload.balance).to eq(300.0)
+    end
+
+    it "returns 404 for nonexistent email" do
+      post "/api/v1/accounts/top_up",
+        params: { amount: 100, email: "nobody@example.com" },
+        headers: auth_headers(admin), as: :json
+
+      expect(response).to have_http_status(:not_found)
+      json = response.parsed_body
+      expect(json["error"]["code"]).to eq("NOT_FOUND")
     end
 
     it "rejects negative amount" do

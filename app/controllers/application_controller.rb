@@ -25,6 +25,10 @@ class ApplicationController < ActionController::API
     render_error("BAD_REQUEST", "Invalid request body", :bad_request)
   end
 
+  def not_found
+    render_error("NOT_FOUND", "No route matches #{request.path}", :not_found)
+  end
+
   private
 
   def render_success(data, status = :ok)

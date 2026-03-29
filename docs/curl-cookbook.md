@@ -46,6 +46,17 @@ curl -s http://localhost:3000/api/v1/accounts/me \
 
 ## Step 3 — Top Up Balance (Admin Only)
 
+Top up the demo user's account by email:
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/accounts/top_up \
+  -H "Authorization: Bearer $ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 5000, "email": "demo@voucher-vendor.test"}' | jq .
+```
+
+Or top up the admin's own account (omit `email`):
+
 ```bash
 curl -s -X POST http://localhost:3000/api/v1/accounts/top_up \
   -H "Authorization: Bearer $ADMIN_KEY" \
@@ -57,7 +68,7 @@ Verify the credit transaction in the response, then check balance:
 
 ```bash
 curl -s http://localhost:3000/api/v1/accounts/me \
-  -H "Authorization: Bearer $ADMIN_KEY" | jq .data.balance
+  -H "Authorization: Bearer $USER_KEY" | jq .data.balance
 ```
 
 ---
@@ -75,7 +86,7 @@ Note the product IDs — you'll need them for orders. The test products are:
 |------|----------|---------|
 | Test - Always Succeeds | Completes instantly | Success flow |
 | Test - Always Fails | Fails every attempt | Failure + refund flow |
-| Test - Stays Pending | Never completes | Cancellation flow |
+| Test - Succeeds After Retries | Fails 3 times, succeeds on attempt 4 | Retry → success flow |
 | Test - Fails After Retry | Fails after retries | Auto-refund flow |
 
 ---
@@ -138,15 +149,48 @@ curl -s -X POST http://localhost:3000/api/v1/orders \
 
 ---
 
-## Step 8 — Cancellation Flow
+## Step 8 — Retry → Success Flow (Succeeds After Retries)
 
 ```bash
-# Place an order with the "Test - Stays Pending" product
+# Place an order with the "Test - Succeeds After Retries" product
 curl -s -X POST http://localhost:3000/api/v1/orders \
   -H "Authorization: Bearer $USER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "product_id": PENDING_PRODUCT_ID,
+    "product_id": RETRY_PRODUCT_ID,
+    "quantity": 1,
+    "denomination": 100,
+    "reference_code": "retry-001"
+  }' | jq .
+# → 202 Accepted, status: "pending"
+```
+
+Watch Sidekiq logs in another terminal to see the retry cycle:
+
+```bash
+docker compose logs -f sidekiq
+# Expect: 3 failed attempts (~30s apart), then success on attempt 4
+```
+
+After ~90 seconds, poll for completion:
+
+```bash
+curl -s http://localhost:3000/api/v1/orders/ORDER_ID \
+  -H "Authorization: Bearer $USER_KEY" | jq '.data | {status, attempts}'
+# → status: "completed", attempts: 4
+```
+
+---
+
+## Step 9 — Cancellation Flow
+
+```bash
+# Place an order with a real product (cancel quickly before Sidekiq processes it)
+curl -s -X POST http://localhost:3000/api/v1/orders \
+  -H "Authorization: Bearer $USER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": PRODUCT_ID,
     "quantity": 1,
     "denomination": 100,
     "reference_code": "cancel-me-001"
@@ -154,7 +198,7 @@ curl -s -X POST http://localhost:3000/api/v1/orders \
 # → 202 Accepted, status: "pending"
 ```
 
-Cancel before it completes:
+Cancel immediately:
 
 ```bash
 curl -s -X POST http://localhost:3000/api/v1/orders/ORDER_ID/cancel \
@@ -171,7 +215,7 @@ curl -s http://localhost:3000/api/v1/accounts/me \
 
 ---
 
-## Step 9 — Auto-Refund Flow (Retry Exhaustion)
+## Step 10 — Auto-Refund Flow (Retry Exhaustion)
 
 ```bash
 # Place an order with the "Test - Fails After Retry" product
@@ -187,7 +231,7 @@ curl -s -X POST http://localhost:3000/api/v1/orders \
 # → 202 Accepted, status: "pending"
 ```
 
-Sidekiq will retry 5 times with exponential backoff, then trigger auto-refund. Monitor progress:
+Sidekiq will retry 5 times (30s apart), then trigger auto-refund. Monitor progress:
 
 ```bash
 # Watch Sidekiq retries in the dashboard
@@ -208,7 +252,7 @@ curl -s http://localhost:3000/api/v1/accounts/me \
 
 ---
 
-## Step 10 — Verify Audit Trail
+## Step 11 — Verify Audit Trail
 
 All balance changes are recorded in `transaction_records`. Inspect via Rails console:
 

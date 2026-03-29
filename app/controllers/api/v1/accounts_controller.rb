@@ -28,9 +28,11 @@ module Api
 
       def top_up
         amount = params.require(:amount)
-        result = Accounts::TopUpService.call(current_account, amount)
+        target = params[:email].present? ? Account.find_by!(email: params[:email]) : current_account
+        result = Accounts::TopUpService.call(target, amount)
 
         render_success({
+          email: result[:account].email,
           balance: result[:account].balance.to_s,
           transaction: {
             type: result[:transaction].transaction_type,
