@@ -23,7 +23,8 @@ module Orders
           transaction_type: TransactionRecord::REFUND,
           amount: @order.total_amount,
           balance_before: balance_before,
-          balance_after: account.balance
+          balance_after: account.balance,
+          notes: "Refunding balance for failed order"
         )
       end
 

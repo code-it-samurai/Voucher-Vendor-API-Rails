@@ -55,7 +55,8 @@ module Orders
           transaction_type: TransactionRecord::DEBIT,
           amount: total_amount,
           balance_before: balance_before,
-          balance_after: account.balance
+          balance_after: account.balance,
+          notes: "Debiting balance for order placement"
         )
       end
 
