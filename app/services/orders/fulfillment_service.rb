@@ -2,11 +2,6 @@ module Orders
   class FulfillmentService
     class FulfillmentError < StandardError; end
 
-    # Number of attempts that will fail before a "pending" test product succeeds.
-    # The product raises FulfillmentError on attempts 1..TRANSIENT_FAILURE_COUNT,
-    # then succeeds on attempt TRANSIENT_FAILURE_COUNT + 1.
-    TRANSIENT_FAILURE_COUNT = 3
-
     def self.call(order)
       new(order).call
     end
@@ -40,25 +35,10 @@ module Orders
     end
 
     def process_order
-      behavior = @order.product.test_behavior
-
-      case behavior
-      when "success"
-        complete_order
-      when "failure"
-        raise FulfillmentError, "Simulated failure for test product"
-      when "pending"
-        if @order.attempts <= TRANSIENT_FAILURE_COUNT
-          raise FulfillmentError, "Simulated transient failure (attempt #{@order.attempts}, succeeds after #{TRANSIENT_FAILURE_COUNT})"
-        else
-          complete_order
-        end
-      when "refund"
-        if @order.attempts <= TRANSIENT_FAILURE_COUNT
-          raise FulfillmentError, "Simulated transient failure (attempt #{@order.attempts}, fails after #{TRANSIENT_FAILURE_COUNT})"
-        else
-          fail_order("Simulated definitive failure for test product")
-        end
+      if @order.product.test_behavior.present?
+        Orders::TestProductSimulator.call(@order)
+        @order.reload
+        complete_order unless terminal_state?
       else
         simulate_downstream
       end
@@ -93,19 +73,6 @@ module Orders
       end
 
       Rails.logger.info "[FulfillmentService] Completed: order=#{@order.id} vouchers=#{@order.quantity}"
-    end
-
-    def fail_order(reason)
-      ActiveRecord::Base.transaction do
-        @order.lock!
-        return if @order.refunded? || @order.failed?
-
-        @order.update!(status: Order::FAILED, failure_reason: reason)
-        Orders::RefundService.call(@order)
-        @order.update!(status: Order::REFUNDED)
-      end
-
-      Rails.logger.warn "[FulfillmentService] Failed definitively: order=#{@order.id} reason=#{reason}"
     end
 
     def generate_voucher_code

@@ -1,14 +1,15 @@
 class OrderFulfillmentJob < ApplicationJob
   queue_as :default
 
-  # retry budget must be >= FulfillmentService::TRANSIENT_FAILURE_COUNT (3)
+  # retry budget must be >= TestProductSimulator::TRANSIENT_FAILURE_COUNT (3)
   # so "pending" test products can exhaust their failures and eventually succeed.
   sidekiq_options retry: 5
 
   sidekiq_retry_in { |_count, _exception| 30 }
 
   sidekiq_retries_exhausted do |msg, _exception|
-    order_id = msg["args"].first
+    args = msg["args"].first
+    order_id = args.is_a?(Hash) ? args["arguments"].first : args
     order = Order.find(order_id)
 
     ActiveRecord::Base.transaction do

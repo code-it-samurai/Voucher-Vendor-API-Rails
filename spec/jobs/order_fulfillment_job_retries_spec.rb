@@ -16,8 +16,9 @@ RSpec.describe OrderFulfillmentJob, "retry exhaustion", type: :job do
 
   let(:msg) do
     {
-      "class" => "OrderFulfillmentJob",
-      "args" => [order.id],
+      "class" => "ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper",
+      "wrapped" => "OrderFulfillmentJob",
+      "args" => [{ "job_class" => "OrderFulfillmentJob", "arguments" => [order.id] }],
       "error_message" => "Simulated failure after processing for test product"
     }
   end

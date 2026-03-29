@@ -32,7 +32,7 @@ sequenceDiagram
             S->>DB: Set status=completed
             Note over S: Done!
         else Transient failure
-            S-->>R: Re-enqueue with exponential backoff
+            S-->>R: Re-enqueue after 30s
             Note over S,R: Retry after delay
         end
     end
@@ -50,14 +50,13 @@ sequenceDiagram
 | Setting | Value |
 |---------|-------|
 | **Max retries** | 5 |
-| **Backoff** | Exponential (Sidekiq default) |
-| **Retry delays** | ~25s, ~46s, ~75s, ~113s, ~160s |
-| **Total window** | ~7 minutes |
+| **Backoff** | Fixed 30 seconds |
+| **Total window** | ~2.5 minutes |
 
 ```ruby
-class OrderFulfillmentJob
-  include Sidekiq::Job
+class OrderFulfillmentJob < ApplicationJob
   sidekiq_options retry: 5
+  sidekiq_retry_in { |_count, _exception| 30 }
 end
 ```
 
@@ -66,12 +65,18 @@ end
 When all 5 retries are exhausted, the `sidekiq_retries_exhausted` callback triggers:
 
 ```ruby
-sidekiq_retries_exhausted do |job, exception|
-  order = Order.find(job["args"].first)
-  order.update!(status: Order::FAILED, failure_reason: exception.message)
+sidekiq_retries_exhausted do |msg, _exception|
+  args = msg["args"].first
+  order_id = args.is_a?(Hash) ? args["arguments"].first : args
+  order = Order.find(order_id)
+
+  order.update!(status: Order::FAILED, failure_reason: msg["error_message"])
   Orders::RefundService.call(order)
+  order.update!(status: Order::REFUNDED)
 end
 ```
+
+Note: ActiveJob wraps Sidekiq args — `msg["args"].first` is a Hash containing `"arguments"`, not the raw job arguments.
 
 The `RefundService`:
 1. Locks the account row → credits balance back
@@ -90,15 +95,15 @@ The fulfillment job is safe to retry:
 
 ## Test Products
 
-Products with `test_behavior` allow deterministic testing of all job outcomes:
+Products with `test_behavior` allow deterministic testing of all job outcomes. Test product simulation is handled by `Orders::TestProductSimulator`, completely separate from the real fulfillment pipeline.
 
 | Product | `test_behavior` | Job Outcome |
 |---------|:---------------:|-------------|
 | Amazon Gift Card | `null` | Normal processing (~80% success in dev) |
 | Test - Always Succeeds | `success` | Completes immediately |
-| Test - Always Fails | `failure` | Fails → retries → refund |
-| Test - Stays Pending | `pending` | Stays in `processing` indefinitely |
-| Test - Fails After Retry | `refund` | Fails after processing → refund |
+| Test - Always Fails | `failure` | Fails → retries → refund via exhaustion handler |
+| Test - Succeeds After Retries | `pending` | 3 transient failures → completes on attempt 4 |
+| Test - Fails After Retry | `refund` | 3 transient failures → refunded on attempt 4 |
 
 This lets reviewers observe every state transition without relying on randomness.
 
