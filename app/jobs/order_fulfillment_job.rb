@@ -1,11 +1,14 @@
 class OrderFulfillmentJob < ApplicationJob
   queue_as :default
 
-  # retry budget must be >= TestProductSimulator::TRANSIENT_FAILURE_COUNT (3)
-  # so "pending" test products can exhaust their failures and eventually succeed.
-  sidekiq_options retry: 5
+  # Retry count matches TestProductSimulator::TRANSIENT_FAILURE_COUNT (3).
+  # All retry-based products resolve in exactly 4 executions (1 initial + 3 retries):
+  #   - "Succeeds After Retries" completes on attempt 4
+  #   - "Fails After Retry" refunds on attempt 4
+  #   - "Always Fails" exhausts retries, then sidekiq_retries_exhausted refunds
+  sidekiq_options retry: 3
 
-  sidekiq_retry_in { |_count, _exception| 30 }
+  sidekiq_retry_in { |_count, _exception| 5 }
 
   sidekiq_retries_exhausted do |msg, _exception|
     args = msg["args"].first

@@ -22,7 +22,7 @@ sequenceDiagram
     W->>R: Enqueue OrderFulfillmentJob(order_id)
     W-->>W: Return 202 Accepted to client
 
-    loop Up to 5 retries
+    loop Up to 3 retries
         S->>R: Dequeue job
         S->>DB: Lock order, set status=processing
         S->>S: Process order (generate vouchers)
@@ -32,7 +32,7 @@ sequenceDiagram
             S->>DB: Set status=completed
             Note over S: Done!
         else Transient failure
-            S-->>R: Re-enqueue after 30s
+            S-->>R: Re-enqueue after 5s
             Note over S,R: Retry after delay
         end
     end
@@ -49,20 +49,20 @@ sequenceDiagram
 
 | Setting | Value |
 |---------|-------|
-| **Max retries** | 5 |
-| **Backoff** | Fixed 30 seconds |
-| **Total window** | ~2.5 minutes |
+| **Max retries** | 3 |
+| **Backoff** | Fixed 5 seconds |
+| **Total window** | ~15 seconds |
 
 ```ruby
 class OrderFulfillmentJob < ApplicationJob
-  sidekiq_options retry: 5
-  sidekiq_retry_in { |_count, _exception| 30 }
+  sidekiq_options retry: 3
+  sidekiq_retry_in { |_count, _exception| 5 }
 end
 ```
 
 ## Automatic Refund on Exhaustion
 
-When all 5 retries are exhausted, the `sidekiq_retries_exhausted` callback triggers:
+When all 3 retries are exhausted, the `sidekiq_retries_exhausted` callback triggers:
 
 ```ruby
 sidekiq_retries_exhausted do |msg, _exception|
