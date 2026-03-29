@@ -19,6 +19,8 @@ module Orders
 
         Orders::RefundService.call(@order)
       end
+
+      Rails.logger.info "[CancellationService] Cancelled: order=#{@order.id} account=#{@order.account_id}"
     end
   end
 end

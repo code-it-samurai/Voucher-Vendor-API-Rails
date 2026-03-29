@@ -13,14 +13,10 @@ module Orders
         account = @order.account.lock!
         product = @order.product.lock!
 
-        # Credit balance
         balance_before = account.balance
         account.update!(balance: account.balance + @order.total_amount)
-
-        # Restore stock
         product.update!(stock: product.stock + @order.quantity)
 
-        # Audit trail
         TransactionRecord.create!(
           account: account,
           order: @order,
@@ -30,6 +26,8 @@ module Orders
           balance_after: account.balance
         )
       end
+
+      Rails.logger.info "[RefundService] Refunded: order=#{@order.id} amount=#{@order.total_amount} account=#{@order.account_id}"
     end
   end
 end

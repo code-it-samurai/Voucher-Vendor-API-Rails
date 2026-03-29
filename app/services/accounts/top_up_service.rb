@@ -26,6 +26,8 @@ module Accounts
           balance_after: @account.balance
         )
 
+        Rails.logger.info "[TopUpService] Credit: account=#{@account.id} amount=#{@amount} balance=#{@account.balance}"
+
         { account: @account, transaction: transaction_record }
       end
     end
