@@ -20,6 +20,7 @@ module Orders
         @order.update!(status: Order::PROCESSING, attempts: @order.attempts + 1)
       end
 
+      Rails.logger.info "[FulfillmentService] Processing: order=#{@order.id} attempt=#{@order.attempts}"
       process_order
     end
 
@@ -38,12 +39,14 @@ module Orders
       when "failure"
         raise FulfillmentError, "Simulated failure for test product"
       when "pending"
-        # Stays in processing forever — for polling tests
-        loop { sleep 60 }
+        if @order.attempts < 4
+          raise FulfillmentError, "Simulated transient failure (attempt #{@order.attempts}/4)"
+        else
+          complete_order
+        end
       when "refund"
         raise FulfillmentError, "Simulated failure after processing for test product"
       else
-        # Normal product: simulate downstream processing
         simulate_downstream
       end
     end
@@ -51,7 +54,6 @@ module Orders
     def simulate_downstream
       sleep(rand(2..5)) if Rails.env.production? || Rails.env.development?
 
-      # ~20% random failure in non-test environments
       if !Rails.env.test? && rand(5).zero?
         raise FulfillmentError, "Downstream fulfillment failed"
       end
@@ -75,6 +77,8 @@ module Orders
 
         @order.update!(status: Order::COMPLETED, processed_at: Time.current)
       end
+
+      Rails.logger.info "[FulfillmentService] Completed: order=#{@order.id} vouchers=#{@order.quantity}"
     end
 
     def generate_voucher_code
