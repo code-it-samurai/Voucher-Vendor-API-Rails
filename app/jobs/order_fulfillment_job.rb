@@ -28,8 +28,11 @@ class OrderFulfillmentJob < ApplicationJob
   end
 
   def perform(order_id)
-    Rails.logger.info "[FulfillmentJob] Starting: order=#{order_id}"
+    Rails.logger.info "[FulfillmentJob] Starting: order=#{order_id} execution=#{executions}"
     order = Order.find(order_id)
     Orders::FulfillmentService.call(order)
+  rescue => e
+    Rails.logger.warn "[FulfillmentJob] Attempt failed: order=#{order_id} execution=#{executions} error=#{e.message}"
+    raise
   end
 end
