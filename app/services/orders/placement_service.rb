@@ -19,29 +19,26 @@ module Orders
     def call
       # Idempotency: return existing order if reference_code already used
       existing = Order.find_by(account_id: @account.id, reference_code: @reference_code)
-      return { order: existing, created: false } if existing
+      if existing
+        Rails.logger.info "[PlacementService] Idempotent hit: order=#{existing.id} ref=#{@reference_code} account=#{@account.id}"
+        return { order: existing, created: false }
+      end
 
       total_amount = @denomination * @quantity
 
       order = nil
       ActiveRecord::Base.transaction do
-        # Lock account row for balance check (fresh load to avoid unpersisted changes error)
         account = Account.lock.find(@account.id)
         raise InsufficientBalanceError, "Account balance is insufficient for this order" if account.balance < total_amount
 
-        # Lock product row for stock check
         product = Product.lock.find_by(id: @product_id, active: true)
         raise ProductNotFoundError, "Product not found or inactive" unless product
         raise OutOfStockError, "Insufficient stock for requested quantity" if product.stock < @quantity
 
-        # Debit balance
         balance_before = account.balance
         account.update!(balance: account.balance - total_amount)
-
-        # Decrement stock
         product.update!(stock: product.stock - @quantity)
 
-        # Create order
         order = Order.create!(
           account: account,
           product: product,
@@ -52,7 +49,6 @@ module Orders
           status: Order::PENDING
         )
 
-        # Audit trail
         TransactionRecord.create!(
           account: account,
           order: order,
@@ -63,16 +59,15 @@ module Orders
         )
       end
 
-      # Enqueue fulfillment job
       OrderFulfillmentJob.perform_later(order.id)
 
-      # Reload the original account object to reflect DB state
-      @account.reload
+      Rails.logger.info "[PlacementService] Order placed: order=#{order.id} ref=#{@reference_code} account=#{@account.id} product=#{@product_id} total=#{total_amount}"
 
+      @account.reload
       { order: order, created: true }
     rescue ActiveRecord::RecordNotUnique
-      # Race condition: another request created the order with same reference_code
       existing = Order.find_by!(account_id: @account.id, reference_code: @reference_code)
+      Rails.logger.info "[PlacementService] Race condition resolved: order=#{existing.id} ref=#{@reference_code} account=#{@account.id}"
       @account.reload
       { order: existing, created: false }
     end

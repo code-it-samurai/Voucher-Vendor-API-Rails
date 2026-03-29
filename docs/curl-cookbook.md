@@ -1,247 +1,229 @@
 # Curl Cookbook
 
-A step-by-step walkthrough testing every endpoint and error case. Run these after `docker compose up --build` and `docker compose exec web bin/rails db:create db:migrate db:seed`.
+A step-by-step walkthrough to manually test every flow. Run these after `docker compose up --build` — the database is auto-seeded with an admin account, a demo user, and test products.
 
-> **Tip:** The seed output prints API keys for both admin and regular test accounts. Use those directly.
+## Step 0 — Grab Your API Keys
 
-## Setup: Get API Keys
+The seed output prints API keys in the `web` container logs. Copy them:
 
 ```bash
-# Create a regular account
-curl -s -X POST http://localhost:3000/api/v1/accounts \
-  -H "Content-Type: application/json" \
-  -d '{"account": {"name": "Reviewer", "email": "reviewer@example.com"}}' | jq .
-
-# Save the api_key from the response
-export USER_KEY="<api_key from response>"
-
-# The admin key was printed during db:seed
-# Or create an admin via rails console:
-# docker compose exec web bin/rails console
-# Account.find_by(email: "admin@voucher-vendor.com").api_key
-export ADMIN_KEY="<admin api_key>"
+docker compose logs web | grep "API key"
 ```
+
+Set them as environment variables for convenience:
+
+```bash
+export ADMIN_KEY="<admin api_key from logs>"
+export USER_KEY="<demo api_key from logs>"
+```
+
+> **Seeded accounts:**
+> - `admin@voucher-vendor.test` — admin with 10,000 balance
+> - `demo@voucher-vendor.test` — regular user with 5,000 balance
 
 ---
 
-## 1. Account Operations
+## Step 1 — Create a Fresh Account
 
-### View Account
+```bash
+curl -s -X POST http://localhost:3000/api/v1/accounts \
+  -H "Content-Type: application/json" \
+  -d '{"account": {"name": "Reviewer", "email": "reviewer@example.com"}}' | jq .
+```
+
+Save the `api_key` from the response if you want to use this account instead of the seeded ones.
+
+---
+
+## Step 2 — View Your Account Balance
 
 ```bash
 curl -s http://localhost:3000/api/v1/accounts/me \
   -H "Authorization: Bearer $USER_KEY" | jq .
 ```
 
-### Top Up Balance (Admin Only)
+---
+
+## Step 3 — Top Up Balance (Admin Only)
 
 ```bash
-# As admin — top up the reviewer account
 curl -s -X POST http://localhost:3000/api/v1/accounts/top_up \
   -H "Authorization: Bearer $ADMIN_KEY" \
   -H "Content-Type: application/json" \
   -d '{"amount": 5000}' | jq .
 ```
 
-### Error: Top Up as Non-Admin (403)
-
-```bash
-curl -s -X POST http://localhost:3000/api/v1/accounts/top_up \
-  -H "Authorization: Bearer $USER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"amount": 1000}' | jq .
-# → {"status":"ERROR","error":{"code":"FORBIDDEN","message":"Admin access required"}}
-```
-
-### Error: Unauthorized (401)
+Verify the credit transaction in the response, then check balance:
 
 ```bash
 curl -s http://localhost:3000/api/v1/accounts/me \
-  -H "Authorization: Bearer invalid_key" | jq .
-# → {"status":"ERROR","error":{"code":"UNAUTHORIZED","message":"Invalid or missing API key"}}
+  -H "Authorization: Bearer $ADMIN_KEY" | jq .data.balance
 ```
 
 ---
 
-## 2. Products
-
-### List All Products
+## Step 4 — Browse Products
 
 ```bash
 curl -s http://localhost:3000/api/v1/products \
   -H "Authorization: Bearer $USER_KEY" | jq .
 ```
 
-### Replenish Stock (Admin Only)
+Note the product IDs — you'll need them for orders. The test products are:
+
+| Name | Behavior | Use For |
+|------|----------|---------|
+| Test - Always Succeeds | Completes instantly | Success flow |
+| Test - Always Fails | Fails every attempt | Failure + refund flow |
+| Test - Stays Pending | Never completes | Cancellation flow |
+| Test - Fails After Retry | Fails after retries | Auto-refund flow |
+
+---
+
+## Step 5 — Replenish Stock (Admin Only)
 
 ```bash
-curl -s -X POST http://localhost:3000/api/v1/products/1/replenish \
+# Replace PRODUCT_ID with an actual ID from Step 4
+curl -s -X POST http://localhost:3000/api/v1/products/PRODUCT_ID/replenish \
   -H "Authorization: Bearer $ADMIN_KEY" \
   -H "Content-Type: application/json" \
   -d '{"quantity": 100}' | jq .
 ```
 
-### Error: Replenish as Non-Admin (403)
-
-```bash
-curl -s -X POST http://localhost:3000/api/v1/products/1/replenish \
-  -H "Authorization: Bearer $USER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"quantity": 50}' | jq .
-# → {"status":"ERROR","error":{"code":"FORBIDDEN",...}}
-```
-
 ---
 
-## 3. Order Placement
-
-### Place a New Order (202)
+## Step 6 — Success Flow (Place Order → Completed with Vouchers)
 
 ```bash
+# Place an order with the "Test - Always Succeeds" product
+# Replace PRODUCT_ID with the actual ID from Step 4
 curl -s -X POST http://localhost:3000/api/v1/orders \
   -H "Authorization: Bearer $USER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "product_id": 6,
+    "product_id": PRODUCT_ID,
     "quantity": 2,
     "denomination": 100,
-    "reference_code": "test-order-001"
+    "reference_code": "success-001"
   }' | jq .
 # → 202 Accepted, status: "pending"
-# Note: product_id 6 = "Test - Always Succeeds"
 ```
 
-### Idempotent Retry — Same Reference Code (200)
+Wait 2-3 seconds for Sidekiq to process, then poll:
 
 ```bash
-curl -s -X POST http://localhost:3000/api/v1/orders \
-  -H "Authorization: Bearer $USER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "product_id": 6,
-    "quantity": 2,
-    "denomination": 100,
-    "reference_code": "test-order-001"
-  }' | jq .
-# → 200 OK, same order returned — no double debit!
-```
-
-### Poll Order Status
-
-```bash
-# Replace :id with the order ID from the placement response
-curl -s http://localhost:3000/api/v1/orders/1 \
+# Replace ORDER_ID with the id from the response above
+curl -s http://localhost:3000/api/v1/orders/ORDER_ID \
   -H "Authorization: Bearer $USER_KEY" | jq .
-# → status: "completed" with vouchers array
-```
-
-### Error: Insufficient Balance (422)
-
-```bash
-curl -s -X POST http://localhost:3000/api/v1/orders \
-  -H "Authorization: Bearer $USER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "product_id": 1,
-    "quantity": 999,
-    "denomination": 100,
-    "reference_code": "will-fail-balance"
-  }' | jq .
-# → {"status":"ERROR","error":{"code":"INSUFFICIENT_BALANCE",...}}
-```
-
-### Error: Out of Stock (422)
-
-```bash
-# First ensure you have enough balance but product has low stock
-curl -s -X POST http://localhost:3000/api/v1/orders \
-  -H "Authorization: Bearer $USER_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "product_id": 1,
-    "quantity": 9999,
-    "denomination": 100,
-    "reference_code": "will-fail-stock"
-  }' | jq .
-# → OUT_OF_STOCK or INSUFFICIENT_BALANCE depending on which check fails first
+# → status: "completed", vouchers array with code, pin, claim_url, expires_at
 ```
 
 ---
 
-## 4. Order Cancellation
-
-### Cancel a Pending Order
+## Step 7 — Idempotency (Replay Same Reference Code)
 
 ```bash
-# Place an order with the "Stays Pending" test product (product_id varies — check /products)
+# Send the exact same request again
 curl -s -X POST http://localhost:3000/api/v1/orders \
   -H "Authorization: Bearer $USER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "product_id": 8,
+    "product_id": PRODUCT_ID,
+    "quantity": 2,
+    "denomination": 100,
+    "reference_code": "success-001"
+  }' | jq .
+# → 200 OK (not 202) — returns the SAME order, no double debit
+```
+
+---
+
+## Step 8 — Cancellation Flow
+
+```bash
+# Place an order with the "Test - Stays Pending" product
+curl -s -X POST http://localhost:3000/api/v1/orders \
+  -H "Authorization: Bearer $USER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": PENDING_PRODUCT_ID,
     "quantity": 1,
     "denomination": 100,
     "reference_code": "cancel-me-001"
   }' | jq .
+# → 202 Accepted, status: "pending"
+```
 
-# Cancel it (replace :id with the order ID)
-curl -s -X POST http://localhost:3000/api/v1/orders/2/cancel \
+Cancel before it completes:
+
+```bash
+curl -s -X POST http://localhost:3000/api/v1/orders/ORDER_ID/cancel \
   -H "Authorization: Bearer $USER_KEY" | jq .
 # → status: "cancelled", balance and stock refunded
 ```
 
-### Error: Cancel Non-Pending Order (422)
+Confirm your balance was restored:
 
 ```bash
-# Try cancelling the already-completed order from step 3
-curl -s -X POST http://localhost:3000/api/v1/orders/1/cancel \
-  -H "Authorization: Bearer $USER_KEY" | jq .
-# → {"status":"ERROR","error":{"code":"ORDER_NOT_CANCELLABLE",...}}
+curl -s http://localhost:3000/api/v1/accounts/me \
+  -H "Authorization: Bearer $USER_KEY" | jq .data.balance
 ```
 
 ---
 
-## 5. Failure + Auto-Refund Flow
-
-### Order That Always Fails
+## Step 9 — Auto-Refund Flow (Retry Exhaustion)
 
 ```bash
-# Use "Test - Always Fails" product (check product_id via /products)
+# Place an order with the "Test - Fails After Retry" product
 curl -s -X POST http://localhost:3000/api/v1/orders \
   -H "Authorization: Bearer $USER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "product_id": 7,
+    "product_id": REFUND_PRODUCT_ID,
     "quantity": 1,
     "denomination": 100,
-    "reference_code": "failure-test-001"
+    "reference_code": "refund-001"
   }' | jq .
 # → 202 Accepted, status: "pending"
+```
 
-# Wait for Sidekiq retries to exhaust (~30 seconds with test product)
-# Then poll:
-curl -s http://localhost:3000/api/v1/orders/3 \
-  -H "Authorization: Bearer $USER_KEY" | jq .
-# → status: "refunded", balance has been restored
+Sidekiq will retry 5 times with exponential backoff, then trigger auto-refund. Monitor progress:
 
-# Verify balance was restored:
+```bash
+# Watch Sidekiq retries in the dashboard
+open http://localhost:3000/sidekiq
+
+# Poll until status changes to "refunded"
+curl -s http://localhost:3000/api/v1/orders/ORDER_ID \
+  -H "Authorization: Bearer $USER_KEY" | jq '.data | {status, failure_reason}'
+# → status: "refunded", failure_reason: "Simulated failure..."
+```
+
+Verify balance restored:
+
+```bash
 curl -s http://localhost:3000/api/v1/accounts/me \
-  -H "Authorization: Bearer $USER_KEY" | jq .
+  -H "Authorization: Bearer $USER_KEY" | jq .data.balance
 ```
 
 ---
 
-## 6. Verify Audit Trail
+## Step 10 — Verify Audit Trail
 
-Check the Sidekiq dashboard to see job history:
-
-```
-http://localhost:3000/sidekiq
-```
-
-The `transaction_records` table maintains a complete audit trail of all balance changes (credits, debits, refunds). You can inspect them via Rails console:
+All balance changes are recorded in `transaction_records`. Inspect via Rails console:
 
 ```bash
 docker compose exec web bin/rails console
-> TransactionRecord.last(10).map { |t| [t.transaction_type, t.amount, t.balance_before, t.balance_after] }
+```
+
+```ruby
+TransactionRecord.last(10).each do |t|
+  puts "#{t.transaction_type.ljust(8)} #{t.amount.to_s.rjust(8)}  balance: #{t.balance_before} → #{t.balance_after}"
+end
+```
+
+Or check the Sidekiq dashboard for job history:
+
+```
+http://localhost:3000/sidekiq
 ```

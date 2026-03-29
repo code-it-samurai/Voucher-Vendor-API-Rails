@@ -3,6 +3,12 @@ class ApplicationController < ActionController::API
              by: -> { request.headers["Authorization"] || request.remote_ip },
              with: -> { render_error("RATE_LIMITED", "Rate limit exceeded. Try again shortly.", :too_many_requests) }
 
+  # Catch-all MUST be defined first — Rails rescue_from matches last-defined-first
+  rescue_from StandardError do |e|
+    Rails.logger.error "[UnhandledError] #{e.class}: #{e.message}"
+    render_error("INTERNAL_ERROR", "Something went wrong", :internal_server_error)
+  end
+
   rescue_from ActiveRecord::RecordNotFound do |e|
     render_error("NOT_FOUND", e.message, :not_found)
   end
@@ -13,6 +19,10 @@ class ApplicationController < ActionController::API
 
   rescue_from ActionController::ParameterMissing do |e|
     render_error("INVALID_INPUT", e.message, :unprocessable_entity)
+  end
+
+  rescue_from ActionDispatch::Http::Parameters::ParseError do
+    render_error("BAD_REQUEST", "Invalid request body", :bad_request)
   end
 
   private

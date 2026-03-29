@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_01_01_000006) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_27_084335) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -41,6 +41,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_01_01_000006) do
     t.string "status", default: "pending", null: false
     t.decimal "total_amount", precision: 12, scale: 2, null: false
     t.datetime "updated_at", null: false
+    t.index ["account_id", "status"], name: "idx_orders_account_status"
     t.index ["account_id"], name: "index_orders_on_account_id"
     t.index ["product_id"], name: "index_orders_on_product_id"
     t.index ["reference_code"], name: "index_orders_on_reference_code", unique: true
@@ -56,6 +57,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_01_01_000006) do
     t.integer "stock", default: 0, null: false
     t.string "test_behavior"
     t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_products_on_active"
   end
 
   create_table "transaction_records", force: :cascade do |t|
@@ -66,6 +68,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_01_01_000006) do
     t.datetime "created_at", null: false
     t.bigint "order_id"
     t.string "transaction_type", null: false
+    t.index ["account_id", "transaction_type"], name: "idx_txn_account_type"
     t.index ["account_id"], name: "index_transaction_records_on_account_id"
     t.index ["order_id"], name: "index_transaction_records_on_order_id"
     t.index ["transaction_type"], name: "index_transaction_records_on_transaction_type"

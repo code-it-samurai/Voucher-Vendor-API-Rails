@@ -43,6 +43,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       API_KEY_SECRET: dev_secret_key_change_in_production
       RAILS_ENV: development
+      WEB_CONCURRENCY: 2
 
   sidekiq:
     build: .
