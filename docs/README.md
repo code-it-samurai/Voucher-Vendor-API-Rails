@@ -12,6 +12,18 @@ docker compose up --build
 
 That's it. The entrypoint script automatically creates the database, runs migrations, and seeds test data. The API is live at **http://localhost:3000** and the Sidekiq dashboard at **http://localhost:3000/sidekiq**.
 
+Seeded accounts (API keys printed in container logs):
+
+| Account | Email | Role | Balance |
+|---|---|---|---|
+| Admin | `admin@voucher-vendor.test` | Admin | 10,000 |
+| Demo User | `demo@voucher-vendor.test` | Regular | 5,000 |
+
+```bash
+# Grab API keys from logs
+docker compose logs web | grep "API key"
+```
+
 ## Running Test Specs
 
 ```bash

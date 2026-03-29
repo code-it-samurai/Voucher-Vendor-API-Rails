@@ -45,8 +45,4 @@ The collection uses **test scripts** to automatically capture IDs and API keys a
 4. Run the **Products** folder (captures product IDs)
 5. Run any **Orders** folder to test specific flows
 
-> **Admin setup:** After creating the admin account, promote it via Rails console:
-> ```bash
-> docker compose exec web bin/rails console
-> Account.find_by(email: 'admin@example.com').update!(admin: true)
-> ```
+> **Note:** The database is seeded with an admin account (`admin@voucher-vendor.test`) and a demo user (`demo@voucher-vendor.test`) automatically. Check the `web` container logs for their API keys: `docker compose logs web | grep "API key"`
