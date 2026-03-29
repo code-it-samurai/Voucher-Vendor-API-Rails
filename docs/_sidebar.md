@@ -15,8 +15,7 @@
   - [Background Jobs](background-jobs.md)
 
 - **Observability**
-  - [Logs (Dozzle)](http://localhost:8080)
-  - [Sidekiq Dashboard](http://localhost:3000/sidekiq)
+  - [Observability](observability.md)
 
 - **Quality**
   - [Testing](testing.md)

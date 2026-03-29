@@ -18,7 +18,7 @@
       --sidebar-nav-link-border-color--active: #a78bfa;
       --sidebar-name-color: #e0e0e0;
 
-      --base-background-color: #111111;
+      --base-background-color: #000000;
       --base-color: #d4d4d4;
 
       --heading-color: #f0f0f0;
@@ -54,8 +54,8 @@
       --search-input-color: #e0e0e0;
     }
 
-    body {
-      background: #111111;
+    body, html {
+      background: #000000;
     }
 
     /* Sidebar */
@@ -120,9 +120,25 @@
     section.cover {
       background: #000000 !important;
       background-image: none !important;
+      overflow: hidden;
+    }
+    section.cover::before,
+    section.cover::after {
+      background: none !important;
+      background-image: none !important;
+      display: none !important;
+    }
+    section.cover .mask {
+      background: #000000 !important;
+      background-image: none !important;
+      opacity: 1 !important;
     }
     section.cover .cover-main {
       text-align: center;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 0 1.5em;
+      box-sizing: border-box;
     }
     section.cover h1 {
       font-size: 3.5em;
@@ -131,20 +147,42 @@
       margin-bottom: 0;
       letter-spacing: -0.02em;
     }
+    section.cover p {
+      color: #888888;
+    }
     section.cover pre {
       text-align: left;
-      max-width: 540px;
+      max-width: 620px;
+      width: 100%;
       margin: 0 auto;
       border: 1px solid #1a1a1a !important;
       background: #0a0a0a !important;
       border-radius: 8px;
+      overflow-x: auto;
+      position: relative;
     }
-    /* Cover buttons — single row */
+    section.cover pre code {
+      white-space: pre;
+      word-break: normal;
+      overflow-wrap: normal;
+      font-size: 0.82em;
+      padding: 1.2em 1.4em !important;
+      display: block;
+    }
+    /* Style copy button on cover page code block — always visible */
+    section.cover .docsify-copy-code-button {
+      background: #222 !important;
+      color: #aaa !important;
+      border: 1px solid #333 !important;
+      border-radius: 4px !important;
+      opacity: 1 !important;
+    }
+    /* Cover buttons */
     section.cover .cover-main > p:last-child {
       display: flex;
       justify-content: center;
-      gap: 14px;
-      flex-wrap: nowrap;
+      gap: 12px;
+      flex-wrap: wrap;
       margin-top: 2.5em;
     }
     section.cover .cover-main > p:last-child a {
@@ -152,11 +190,11 @@
       align-items: center;
       justify-content: center;
       border: 1px solid #333;
-      color: #ccc !important;
+      color: #bbbbbb !important;
       border-radius: 8px;
-      padding: 0.6em 1.4em;
+      padding: 0.55em 1.3em;
       text-decoration: none;
-      font-size: 0.85em;
+      font-size: 0.82em;
       font-weight: 500;
       transition: all 0.25s ease;
       background: transparent;
@@ -201,7 +239,7 @@
   <script>
     window.$docsify = {
       name: 'Voucher Vendor API',
-      repo: 'https://github.com/code-it-samurai/Voucher-Vendor-API-Rails',
+      // repo link removed — Github Repo button on coverpage instead
       loadSidebar: true,
       coverpage: true,
       auto2top: true,
