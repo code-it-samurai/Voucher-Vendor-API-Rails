@@ -54,7 +54,11 @@ module Orders
           complete_order
         end
       when "refund"
-        raise FulfillmentError, "Simulated failure after processing for test product"
+        if @order.attempts <= TRANSIENT_FAILURE_COUNT
+          raise FulfillmentError, "Simulated transient failure (attempt #{@order.attempts}, fails after #{TRANSIENT_FAILURE_COUNT})"
+        else
+          fail_order("Simulated definitive failure for test product")
+        end
       else
         simulate_downstream
       end
@@ -89,6 +93,19 @@ module Orders
       end
 
       Rails.logger.info "[FulfillmentService] Completed: order=#{@order.id} vouchers=#{@order.quantity}"
+    end
+
+    def fail_order(reason)
+      ActiveRecord::Base.transaction do
+        @order.lock!
+        return if @order.refunded? || @order.failed?
+
+        @order.update!(status: Order::FAILED, failure_reason: reason)
+        Orders::RefundService.call(@order)
+        @order.update!(status: Order::REFUNDED)
+      end
+
+      Rails.logger.warn "[FulfillmentService] Failed definitively: order=#{@order.id} reason=#{reason}"
     end
 
     def generate_voucher_code

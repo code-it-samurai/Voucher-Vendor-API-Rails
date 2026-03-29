@@ -66,6 +66,62 @@ RSpec.describe Orders::FulfillmentService do
     end
   end
 
+  describe "test_behavior: refund (transient failure then definitive failure)" do
+    let(:product) { create(:product, :test_refund, stock: 8) }
+    let(:threshold) { Orders::FulfillmentService::TRANSIENT_FAILURE_COUNT }
+
+    it "raises FulfillmentError for each of the first #{Orders::FulfillmentService::TRANSIENT_FAILURE_COUNT} attempts" do
+      threshold.times do |i|
+        expect { described_class.call(order) }
+          .to raise_error(Orders::FulfillmentService::FulfillmentError, /Simulated transient failure/)
+        expect(order.reload.attempts).to eq(i + 1)
+        expect(order.reload.status).to eq(Order::PROCESSING)
+      end
+    end
+
+    it "refunds the order on attempt #{Orders::FulfillmentService::TRANSIENT_FAILURE_COUNT + 1} without raising" do
+      order.update!(status: Order::PROCESSING, attempts: threshold)
+
+      expect { described_class.call(order) }.not_to raise_error
+
+      order.reload
+      expect(order.status).to eq(Order::REFUNDED)
+      expect(order.failure_reason).to be_present
+    end
+
+    it "restores account balance on definitive failure" do
+      order.update!(status: Order::PROCESSING, attempts: threshold)
+      balance_before = account.reload.balance
+
+      described_class.call(order)
+
+      expect(account.reload.balance).to eq(balance_before + order.total_amount)
+    end
+
+    it "restores product stock on definitive failure" do
+      order.update!(status: Order::PROCESSING, attempts: threshold)
+      stock_before = product.reload.stock
+
+      described_class.call(order)
+
+      expect(product.reload.stock).to eq(stock_before + order.quantity)
+    end
+
+    it "refunds after cycling through all failures" do
+      threshold.times do
+        expect { described_class.call(order) }
+          .to raise_error(Orders::FulfillmentService::FulfillmentError)
+      end
+
+      expect { described_class.call(order) }.not_to raise_error
+
+      order.reload
+      expect(order.status).to eq(Order::REFUNDED)
+      expect(order.attempts).to eq(threshold + 1)
+      expect(order.vouchers).to be_empty
+    end
+  end
+
   describe "skips terminal states" do
     it "does nothing for completed orders" do
       order.update!(status: Order::COMPLETED)
