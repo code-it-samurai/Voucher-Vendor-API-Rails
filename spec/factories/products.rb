@@ -25,8 +25,13 @@ FactoryBot.define do
     end
 
     trait :test_pending do
-      name { "Test - Stays Pending" }
+      name { "Test - Succeeds After Retries" }
       test_behavior { "pending" }
+    end
+
+    trait :test_refund do
+      name { "Test - Fails After Retry" }
+      test_behavior { "refund" }
     end
   end
 end

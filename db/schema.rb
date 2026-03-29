@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_27_084335) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_29_192334) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -66,6 +66,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_27_084335) do
     t.decimal "balance_after", precision: 12, scale: 2, null: false
     t.decimal "balance_before", precision: 12, scale: 2, null: false
     t.datetime "created_at", null: false
+    t.text "notes"
     t.bigint "order_id"
     t.string "transaction_type", null: false
     t.index ["account_id", "transaction_type"], name: "idx_txn_account_type"

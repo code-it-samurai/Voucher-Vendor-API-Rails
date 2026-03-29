@@ -16,8 +16,9 @@ RSpec.describe OrderFulfillmentJob, "retry exhaustion", type: :job do
 
   let(:msg) do
     {
-      "class" => "OrderFulfillmentJob",
-      "args" => [order.id],
+      "class" => "ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper",
+      "wrapped" => "OrderFulfillmentJob",
+      "args" => [{ "job_class" => "OrderFulfillmentJob", "arguments" => [order.id] }],
       "error_message" => "Simulated failure after processing for test product"
     }
   end
@@ -69,6 +70,14 @@ RSpec.describe OrderFulfillmentJob, "retry exhaustion", type: :job do
       expect {
         described_class.sidekiq_retries_exhausted_block.call(msg, StandardError.new("boom"))
       }.not_to change { account.reload.balance }
+    end
+
+    it "does not raise for already completed orders" do
+      order.update!(status: Order::COMPLETED)
+
+      expect {
+        described_class.sidekiq_retries_exhausted_block.call(msg, StandardError.new("boom"))
+      }.not_to raise_error
     end
   end
 end

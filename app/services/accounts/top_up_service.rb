@@ -23,7 +23,8 @@ module Accounts
           transaction_type: TransactionRecord::CREDIT,
           amount: @amount,
           balance_before: balance_before,
-          balance_after: @account.balance
+          balance_after: @account.balance,
+          notes: "Crediting balance"
         )
 
         Rails.logger.info "[TopUpService] Credit: account=#{@account.id} amount=#{@amount} balance=#{@account.balance}"

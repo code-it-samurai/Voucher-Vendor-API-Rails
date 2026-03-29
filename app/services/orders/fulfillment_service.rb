@@ -13,15 +13,19 @@ module Orders
     def call
       return if terminal_state?
 
+      should_process = false
       ActiveRecord::Base.transaction do
         @order.lock!
-        return if terminal_state?
-
-        @order.update!(status: Order::PROCESSING, attempts: @order.attempts + 1)
+        unless terminal_state?
+          @order.update!(status: Order::PROCESSING, attempts: @order.attempts + 1)
+          should_process = true
+        end
       end
 
-      Rails.logger.info "[FulfillmentService] Processing: order=#{@order.id} attempt=#{@order.attempts}"
-      process_order
+      if should_process
+        Rails.logger.info "[FulfillmentService] Processing: order=#{@order.id} attempt=#{@order.attempts}"
+        process_order
+      end
     end
 
     private
@@ -31,21 +35,10 @@ module Orders
     end
 
     def process_order
-      behavior = @order.product.test_behavior
-
-      case behavior
-      when "success"
-        complete_order
-      when "failure"
-        raise FulfillmentError, "Simulated failure for test product"
-      when "pending"
-        if @order.attempts < 4
-          raise FulfillmentError, "Simulated transient failure (attempt #{@order.attempts}/4)"
-        else
-          complete_order
-        end
-      when "refund"
-        raise FulfillmentError, "Simulated failure after processing for test product"
+      if @order.product.test_behavior.present?
+        Orders::TestProductSimulator.call(@order)
+        @order.reload
+        complete_order unless terminal_state?
       else
         simulate_downstream
       end
@@ -64,6 +57,7 @@ module Orders
     def complete_order
       ActiveRecord::Base.transaction do
         @order.lock!
+        return if @order.completed?
 
         @order.quantity.times do
           Voucher.create!(

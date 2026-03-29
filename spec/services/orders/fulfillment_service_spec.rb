@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe Orders::FulfillmentService do
   let(:account) { create(:account, balance: 800.0) }
-  let(:product) { create(:product, :test_success, stock: 8) }
+  let(:product) { create(:product, stock: 8) }
   let(:order) { create(:order, account: account, product: product, quantity: 2, total_amount: 200.0) }
 
   describe "successful fulfillment" do
@@ -18,13 +18,12 @@ RSpec.describe Orders::FulfillmentService do
     end
   end
 
-  describe "test_behavior: failure" do
-    let(:product) { create(:product, :test_failure, stock: 8) }
+  describe "delegates to TestProductSimulator for test products" do
+    let(:product) { create(:product, :test_success, stock: 8) }
 
-    it "raises FulfillmentError" do
-      expect { described_class.call(order) }
-        .to raise_error(Orders::FulfillmentService::FulfillmentError)
-      expect(order.reload.status).to eq(Order::PROCESSING)
+    it "calls the simulator when test_behavior is present" do
+      expect(Orders::TestProductSimulator).to receive(:call).with(order)
+      described_class.call(order)
     end
   end
 

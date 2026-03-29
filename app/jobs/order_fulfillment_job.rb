@@ -1,17 +1,23 @@
 class OrderFulfillmentJob < ApplicationJob
   queue_as :default
-  
-  sidekiq_options retry: 5
 
-  sidekiq_retry_in { |_count, _exception| 30 }
+  # Retry count matches TestProductSimulator::TRANSIENT_FAILURE_COUNT (3).
+  # All retry-based products resolve in exactly 4 executions (1 initial + 3 retries):
+  #   - "Succeeds After Retries" completes on attempt 4
+  #   - "Fails After Retry" refunds on attempt 4
+  #   - "Always Fails" exhausts retries, then sidekiq_retries_exhausted refunds
+  sidekiq_options retry: 3
+
+  sidekiq_retry_in { |_count, _exception| 5 }
 
   sidekiq_retries_exhausted do |msg, _exception|
-    order_id = msg["args"].first
+    args = msg["args"].first
+    order_id = args.is_a?(Hash) ? args["arguments"].first : args
     order = Order.find(order_id)
 
     ActiveRecord::Base.transaction do
       order.lock!
-      return if order.completed? || order.cancelled? || order.refunded?
+      next if order.completed? || order.cancelled? || order.refunded?
 
       order.update!(
         status: Order::FAILED,
@@ -31,8 +37,12 @@ class OrderFulfillmentJob < ApplicationJob
     Rails.logger.info "[FulfillmentJob] Starting: order=#{order_id} execution=#{executions}"
     order = Order.find(order_id)
     Orders::FulfillmentService.call(order)
+    Rails.logger.info "[FulfillmentJob] Succeeded: order=#{order_id} execution=#{executions}"
+  rescue Orders::FulfillmentService::FulfillmentError => e
+    Rails.logger.warn "[FulfillmentJob] Transient failure: order=#{order_id} execution=#{executions} error=#{e.message}"
+    raise
   rescue => e
-    Rails.logger.warn "[FulfillmentJob] Attempt failed: order=#{order_id} execution=#{executions} error=#{e.message}"
+    Rails.logger.error "[FulfillmentJob] Unexpected error: order=#{order_id} execution=#{executions} error=#{e.class}: #{e.message}"
     raise
   end
 end

@@ -44,6 +44,11 @@ services:
       API_KEY_SECRET: dev_secret_key_change_in_production
       RAILS_ENV: development
       WEB_CONCURRENCY: 2
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   sidekiq:
     build: .
@@ -64,6 +69,18 @@ services:
       REDIS_URL: redis://redis:6379/0
       API_KEY_SECRET: dev_secret_key_change_in_production
       RAILS_ENV: development
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  dozzle:
+    image: amir20/dozzle:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 volumes:
   postgres_data:
