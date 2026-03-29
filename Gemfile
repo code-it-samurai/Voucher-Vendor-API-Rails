@@ -6,6 +6,7 @@ gem "puma", ">= 5.0"
 gem "sidekiq", "~> 7.0"
 gem "connection_pool", "~> 2.4"
 gem "redis", ">= 4.0.1"
+gem "lograge"
 gem "bootsnap", require: false
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
