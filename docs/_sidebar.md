@@ -14,5 +14,9 @@
   - [Concurrency Safety](concurrency.md)
   - [Background Jobs](background-jobs.md)
 
+- **Observability**
+  - [Logs (Dozzle)](http://localhost:8080)
+  - [Sidekiq Dashboard](http://localhost:3000/sidekiq)
+
 - **Quality**
   - [Testing](testing.md)

@@ -169,10 +169,10 @@ Watch Sidekiq logs in another terminal to see the retry cycle:
 
 ```bash
 docker compose logs -f sidekiq
-# Expect: 3 failed attempts (~30s apart), then success on attempt 4
+# Expect: 3 failed attempts (~5s apart), then success on attempt 4
 ```
 
-After ~90 seconds, poll for completion:
+After ~15 seconds, poll for completion:
 
 ```bash
 curl -s http://localhost:3000/api/v1/orders/ORDER_ID \
@@ -231,7 +231,7 @@ curl -s -X POST http://localhost:3000/api/v1/orders \
 # → 202 Accepted, status: "pending"
 ```
 
-Sidekiq will retry 5 times (30s apart), then trigger auto-refund. Monitor progress:
+Sidekiq will retry 3 times (5s apart), then trigger auto-refund. Monitor progress:
 
 ```bash
 # Watch Sidekiq retries in the dashboard

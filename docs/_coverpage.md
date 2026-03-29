@@ -1,14 +1,20 @@
-# Voucher Vendor API
+<div style="text-align:center;">
+  <h1 style="font-size:4em;font-weight:800;color:#ffffff;margin-bottom:0;letter-spacing:-0.03em;text-shadow:0 0 80px rgba(139,92,246,0.4);">Voucher Vendor API</h1>
+  <p style="font-size:0.85em;color:#444;margin-top:0.3em;font-weight:300;">by prat</p>
+  <p style="font-size:0.95em;color:#555;margin-top:1.5em;max-width:520px;display:inline-block;line-height:1.6;">Concurrent, idempotent, admin-controlled voucher distribution service with realistic async fulfillment</p>
+</div>
 
-> A production-grade Gift Card Order Service built with Ruby on Rails
+<div style="margin-top:2.5em;">
 
-- [**Idempotent** order placement via client-provided reference codes](idempotency.md)
-- [**Concurrency-safe** balance & stock mutations with row-level locks](concurrency.md)
-- [**Async fulfillment** with Sidekiq, retries & automatic refunds](background-jobs.md)
-- [**Admin authorization** and per-account rate limiting](authentication.md)
-- [**Test specs** with thread-safety concurrency coverage](testing.md)
+```bash
+git clone https://github.com/code-it-samurai/Voucher-Vendor-API-Rails.git
+cd Voucher-Vendor-API-Rails
+docker compose up --build
+# API live at localhost:3000 — start making requests
+```
 
-[Get Started](#quick-start)
-[API Reference](api-reference.md)
+</div>
+
+[Observability](http://localhost:8080)
 [Postman Collection](postman.md)
-[GitHub](https://github.com/code-it-samurai/Voucher-Vendor-API-Rails)
+[API Guide](api-reference.md)
