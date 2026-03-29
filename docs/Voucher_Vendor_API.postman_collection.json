@@ -152,7 +152,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amount\": 5000\n}"
+              "raw": "{\n  \"amount\": 5000,\n  \"email\": \"testuser@example.com\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/accounts/top_up",
@@ -198,7 +198,7 @@
                   "  const success = res.data.find(p => p.name === 'Test - Always Succeeds');",
                   "  if (success) pm.collectionVariables.set('test_success_product_id', success.id);",
                   "",
-                  "  const pending = res.data.find(p => p.name === 'Test - Stays Pending');",
+                  "  const pending = res.data.find(p => p.name === 'Test - Succeeds After Retries');",
                   "  if (pending) pm.collectionVariables.set('test_pending_product_id', pending.id);",
                   "",
                   "  const refund = res.data.find(p => p.name === 'Test - Fails After Retry');",
@@ -369,11 +369,11 @@
       ]
     },
     {
-      "name": "Orders — Pending Flow",
-      "description": "Place an order using the test product that stays in pending state indefinitely.",
+      "name": "Orders — Retry → Success Flow",
+      "description": "Place an order using the test product that fails 3 times then succeeds on attempt 4.",
       "item": [
         {
-          "name": "Place Order (Stays Pending)",
+          "name": "Place Order (Succeeds After Retries)",
           "event": [
             {
               "listen": "test",
@@ -406,16 +406,17 @@
           }
         },
         {
-          "name": "Poll Order — Still Pending",
+          "name": "Poll Order — Completed After Retries",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "const res = pm.response.json();",
-                  "pm.test('Order remains pending', () => {",
+                  "pm.test('Order completed after retries', () => {",
                   "  pm.response.to.have.status(200);",
-                  "  pm.expect(res.data.status).to.be.oneOf(['pending', 'processing']);",
+                  "  pm.expect(res.data.status).to.eql('completed');",
+                  "  pm.expect(res.data.vouchers).to.be.an('array').that.is.not.empty;",
                   "});"
                 ]
               }

@@ -78,26 +78,29 @@ View the current authenticated account. API key is **not** included in response.
 
 ### POST /api/v1/accounts/top_up
 
-Add funds to an account balance. **Admin-only.**
+Add funds to an account balance. **Admin-only.** Optionally target another account by `email`.
 
 **Request:**
 ```json
 {
-  "amount": 1000.00
+  "amount": 1000.00,
+  "email": "demo@voucher-vendor.test"
 }
 ```
+
+> Omit `email` to top up the admin's own account.
 
 **Response (200 OK):**
 ```json
 {
   "status": "SUCCESS",
   "data": {
-    "balance": "1000.0",
+    "email": "demo@voucher-vendor.test",
+    "balance": "6000.0",
     "transaction": {
       "type": "credit",
       "amount": "1000.0",
-      "balance_before": "0.0",
-      "balance_after": "1000.0"
+      "balance_after": "6000.0"
     }
   }
 }
@@ -108,6 +111,7 @@ Add funds to an account balance. **Admin-only.**
 | Status | Code | When |
 |---|---|---|
 | 403 | `FORBIDDEN` | Non-admin account |
+| 404 | `NOT_FOUND` | Email not found |
 | 422 | `INVALID_AMOUNT` | Amount <= 0 |
 
 ---
@@ -218,7 +222,7 @@ Same body as above, returning the existing order. No balance debit or stock chan
 |---|---|---|
 | 422 | `INSUFFICIENT_BALANCE` | Account balance < total_amount |
 | 422 | `OUT_OF_STOCK` | Product stock < quantity |
-| 422 | `PRODUCT_NOT_FOUND` | Product doesn't exist or inactive |
+| 404 | `PRODUCT_NOT_FOUND` | Product doesn't exist or is inactive |
 | 422 | `INVALID_INPUT` | Missing fields or invalid values |
 
 > **Idempotency:** Two simultaneous requests with the same `reference_code` are safe. The DB unique constraint catches the second INSERT, and the service returns the existing order. See [Idempotency](idempotency.md).

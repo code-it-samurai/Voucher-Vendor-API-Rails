@@ -42,7 +42,7 @@ All specs run inside the same Docker environment — no local Ruby install neede
 | **Idempotency** | Client-provided `reference_code` + DB unique constraint |
 | **Background Processing** | Sidekiq jobs with configurable retry strategy |
 | **Concurrency Safety** | `SELECT ... FOR UPDATE` row-level locks |
-| **Failure Handling** | Exponential backoff retries + automatic refund on exhaustion |
+| **Failure Handling** | Fixed-interval retries (3 retries @ 5s) + automatic refund on exhaustion |
 | **Production Quality** | Consistent response envelope, admin auth, rate limiting, audit trail |
 
 ## Tech Stack
