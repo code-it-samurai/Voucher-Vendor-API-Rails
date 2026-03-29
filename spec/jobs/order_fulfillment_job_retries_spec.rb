@@ -70,5 +70,13 @@ RSpec.describe OrderFulfillmentJob, "retry exhaustion", type: :job do
         described_class.sidekiq_retries_exhausted_block.call(msg, StandardError.new("boom"))
       }.not_to change { account.reload.balance }
     end
+
+    it "does not raise for already completed orders" do
+      order.update!(status: Order::COMPLETED)
+
+      expect {
+        described_class.sidekiq_retries_exhausted_block.call(msg, StandardError.new("boom"))
+      }.not_to raise_error
+    end
   end
 end

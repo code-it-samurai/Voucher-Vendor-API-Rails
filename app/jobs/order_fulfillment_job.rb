@@ -1,6 +1,8 @@
 class OrderFulfillmentJob < ApplicationJob
   queue_as :default
-  
+
+  # retry budget must be >= FulfillmentService::TRANSIENT_FAILURE_COUNT (3)
+  # so "pending" test products can exhaust their failures and eventually succeed.
   sidekiq_options retry: 5
 
   sidekiq_retry_in { |_count, _exception| 30 }
@@ -11,7 +13,7 @@ class OrderFulfillmentJob < ApplicationJob
 
     ActiveRecord::Base.transaction do
       order.lock!
-      return if order.completed? || order.cancelled? || order.refunded?
+      next if order.completed? || order.cancelled? || order.refunded?
 
       order.update!(
         status: Order::FAILED,
@@ -31,8 +33,12 @@ class OrderFulfillmentJob < ApplicationJob
     Rails.logger.info "[FulfillmentJob] Starting: order=#{order_id} execution=#{executions}"
     order = Order.find(order_id)
     Orders::FulfillmentService.call(order)
+    Rails.logger.info "[FulfillmentJob] Succeeded: order=#{order_id} execution=#{executions}"
+  rescue Orders::FulfillmentService::FulfillmentError => e
+    Rails.logger.warn "[FulfillmentJob] Transient failure: order=#{order_id} execution=#{executions} error=#{e.message}"
+    raise
   rescue => e
-    Rails.logger.warn "[FulfillmentJob] Attempt failed: order=#{order_id} execution=#{executions} error=#{e.message}"
+    Rails.logger.error "[FulfillmentJob] Unexpected error: order=#{order_id} execution=#{executions} error=#{e.class}: #{e.message}"
     raise
   end
 end

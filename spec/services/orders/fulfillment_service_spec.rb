@@ -28,6 +28,44 @@ RSpec.describe Orders::FulfillmentService do
     end
   end
 
+  describe "test_behavior: pending (transient failure then success)" do
+    let(:product) { create(:product, :test_pending, stock: 8) }
+    let(:threshold) { Orders::FulfillmentService::TRANSIENT_FAILURE_COUNT }
+
+    it "raises FulfillmentError for each of the first #{Orders::FulfillmentService::TRANSIENT_FAILURE_COUNT} attempts" do
+      threshold.times do |i|
+        expect { described_class.call(order) }
+          .to raise_error(Orders::FulfillmentService::FulfillmentError, /Simulated transient failure/)
+        expect(order.reload.attempts).to eq(i + 1)
+        expect(order.reload.status).to eq(Order::PROCESSING)
+      end
+    end
+
+    it "completes the order on attempt #{Orders::FulfillmentService::TRANSIENT_FAILURE_COUNT + 1}" do
+      order.update!(status: Order::PROCESSING, attempts: threshold)
+
+      described_class.call(order)
+
+      order.reload
+      expect(order.status).to eq(Order::COMPLETED)
+      expect(order.vouchers.count).to eq(order.quantity)
+    end
+
+    it "completes successfully after cycling through all failures" do
+      threshold.times do
+        expect { described_class.call(order) }
+          .to raise_error(Orders::FulfillmentService::FulfillmentError)
+      end
+
+      expect { described_class.call(order) }.not_to raise_error
+
+      order.reload
+      expect(order.status).to eq(Order::COMPLETED)
+      expect(order.attempts).to eq(threshold + 1)
+      expect(order.vouchers.count).to eq(order.quantity)
+    end
+  end
+
   describe "skips terminal states" do
     it "does nothing for completed orders" do
       order.update!(status: Order::COMPLETED)

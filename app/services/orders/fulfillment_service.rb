@@ -2,6 +2,11 @@ module Orders
   class FulfillmentService
     class FulfillmentError < StandardError; end
 
+    # Number of attempts that will fail before a "pending" test product succeeds.
+    # The product raises FulfillmentError on attempts 1..TRANSIENT_FAILURE_COUNT,
+    # then succeeds on attempt TRANSIENT_FAILURE_COUNT + 1.
+    TRANSIENT_FAILURE_COUNT = 3
+
     def self.call(order)
       new(order).call
     end
@@ -13,15 +18,19 @@ module Orders
     def call
       return if terminal_state?
 
+      should_process = false
       ActiveRecord::Base.transaction do
         @order.lock!
-        return if terminal_state?
-
-        @order.update!(status: Order::PROCESSING, attempts: @order.attempts + 1)
+        unless terminal_state?
+          @order.update!(status: Order::PROCESSING, attempts: @order.attempts + 1)
+          should_process = true
+        end
       end
 
-      Rails.logger.info "[FulfillmentService] Processing: order=#{@order.id} attempt=#{@order.attempts}"
-      process_order
+      if should_process
+        Rails.logger.info "[FulfillmentService] Processing: order=#{@order.id} attempt=#{@order.attempts}"
+        process_order
+      end
     end
 
     private
@@ -39,8 +48,8 @@ module Orders
       when "failure"
         raise FulfillmentError, "Simulated failure for test product"
       when "pending"
-        if @order.attempts < 4
-          raise FulfillmentError, "Simulated transient failure (attempt #{@order.attempts}/4)"
+        if @order.attempts <= TRANSIENT_FAILURE_COUNT
+          raise FulfillmentError, "Simulated transient failure (attempt #{@order.attempts}, succeeds after #{TRANSIENT_FAILURE_COUNT})"
         else
           complete_order
         end
@@ -64,6 +73,7 @@ module Orders
     def complete_order
       ActiveRecord::Base.transaction do
         @order.lock!
+        return if @order.completed?
 
         @order.quantity.times do
           Voucher.create!(
