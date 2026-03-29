@@ -76,7 +76,7 @@ GEM
       tzinfo (~> 2.0, >= 2.0.5)
       uri (>= 0.13.1)
     base64 (0.3.0)
-    bigdecimal (4.0.1)
+    bigdecimal (4.1.0)
     bootsnap (1.23.0)
       msgpack (~> 1.2)
     builder (3.3.0)
@@ -231,8 +231,8 @@ GEM
       rspec-support (~> 3.13)
     rspec-support (3.13.7)
     securerandom (0.4.1)
-    shoulda-matchers (6.5.0)
-      activesupport (>= 5.2.0)
+    shoulda-matchers (7.0.1)
+      activesupport (>= 7.1)
     sidekiq (7.3.9)
       base64
       connection_pool (>= 2.3.0)
@@ -272,7 +272,7 @@ DEPENDENCIES
   rails (~> 8.1.2)
   redis (>= 4.0.1)
   rspec-rails (~> 7.0)
-  shoulda-matchers (~> 6.0)
+  shoulda-matchers (~> 7.0)
   sidekiq (~> 7.0)
   tzinfo-data
 
