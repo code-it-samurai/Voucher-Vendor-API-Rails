@@ -1,6 +1,7 @@
 - **Getting Started**
   - [Overview](/)
   - [Docker Setup](docker-setup.md)
+  - [Quick Walkthrough](walkthrough.md)
 
 - **API**
   - [API Reference](api-reference.md)
