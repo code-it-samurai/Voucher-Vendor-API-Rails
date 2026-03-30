@@ -12,6 +12,7 @@
   <button onclick="var self=this;var code=this.parentElement.querySelector('code');navigator.clipboard.writeText(code.textContent).then(function(){self.textContent='Copied!';setTimeout(function(){self.textContent='Copy'},2000)}).catch(function(){var t=document.createElement('textarea');t.value=code.textContent;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);self.textContent='Copied!';setTimeout(function(){self.textContent='Copy'},2000)})" style="position:absolute;top:8px;right:8px;background:#222;color:#aaa;border:1px solid #333;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:0.8em;">Copy</button>
 </div>
 
+[Quick Walkthrough](walkthrough.md)
 [Observability](observability.md)
 [Postman Collection](postman.md)
 [API Guide](api-reference.md)
