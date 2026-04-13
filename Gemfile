@@ -4,7 +4,7 @@ gem "rails", "~> 8.1.2"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 gem "sidekiq", "~> 7.0"
-gem "connection_pool", "~> 2.4"
+gem "connection_pool", "~> 3.0"
 gem "redis", ">= 4.0.1"
 gem "lograge"
 gem "bootsnap", require: false
